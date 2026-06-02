@@ -1,54 +1,53 @@
 codeforge:
-  version: "1.0.0"
-  
-  # Model Configuration
+  version: "1.0.1-hackathon"
+
+  # Model Configuration - Switched to Gemini compatible
   models:
-    lead_architect: "gpt-4o"
+    lead_architect: "gemini-2.5-pro"   # Use via Google Cloud Agent Builder
     specialists:
-      syntax_refactor: "gpt-4-turbo"
-      dependency_solver: "gpt-4-turbo"
-      docstring_writer: "gpt-4-turbo"
-      test_generator: "gpt-4o"
-      code_reviewer: "gpt-4o"
-  
-  # Language Support
-  supported_languages:
-    python:
-      extensions: [".py"]
-      target_versions: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-      test_frameworks: ["pytest", "unittest"]
-      doc_style: "google"
-    javascript:
-      extensions: [".js", ".jsx"]
-      target_versions: ["ES2020", "ES2021", "ES2022"]
-      test_frameworks: ["jest", "mocha"]
-      doc_style: "jsdoc"
-    typescript:
-      extensions: [".ts", ".tsx"]
-      target_versions: ["4.9", "5.0", "5.1"]
-      test_frameworks: ["jest", "vitest"]
-      doc_style: "tsdoc"
-  
+      inventory_forecaster: "gemini-2.5-flash"
+      scheduler_optimizer: "gemini-2.5-pro"
+      ar_collector: "gemini-2.5-flash"
+      parts_orderer: "gemini-2.5-flash"
+      risk_assessor: "gemini-2.5-pro"
+
+  # HVAC / Trades Domain Configuration
+  domain:
+    industry: "HVAC and Small Trades Services"
+    key_entities:
+      - jobs
+      - inventory
+      - customers
+      - technicians
+      - invoices
+    data_sources: ["MongoDB Atlas via MCP"]
+
   # Processing Limits
   limits:
-    max_file_size_mb: 1
-    max_files_per_batch: 10
-    max_concurrent_tasks: 5
-    timeout_per_task_minutes: 10
-  
-  # Security Settings
+    max_jobs_per_analysis: 50
+    max_forecast_days: 30
+    max_concurrent_tasks: 4
+    timeout_per_task_minutes: 8
+
+  # Security & Approval Settings
   security:
     create_backups: true
-    scan_for_secrets: true
-    require_approval_for: ["database_changes", "api_changes"]
-    
-  # Git Integration
-  git:
-    create_branch: true
-    branch_prefix: "codeforge-"
-    commit_message_template: |
-      CodeForge AI: {task_summary}
-      
-      {task_details}
-      
-      Automated by CodeForge AI v{version}
+    require_approval_for:
+      - parts_orders
+      - schedule_changes
+      - financial_actions
+
+  # MongoDB MCP Integration
+  mongodb_mcp:
+    enabled: true
+    collections:
+      - jobs
+      - inventory
+      - customers
+      - audit_logs
+
+  # Agent Behavior
+  agent_behavior:
+    human_in_loop: true
+    max_reasoning_steps: 8
+    tool_execution_enabled: true
