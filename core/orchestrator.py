@@ -1,4 +1,4 @@
-"""AgentForge PM orchestration."""
+"""HVAC OpsForge orchestration."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ from typing import Any, Dict, List, MutableMapping, Optional
 from core.agents import (
     AgentContext,
     LeadArchitect,
-    ReportGeneratorAgent,
-    RequirementsAgent,
-    RiskForecasterAgent,
+    ARCollectorAgent,
+    InventoryForecasterAgent,
+    RiskAssessorAgent,
     SchedulerOptimizerAgent,
 )
 
-logger = logging.getLogger("agentforge_pm.orchestrator")
+logger = logging.getLogger("hvac_opsforge.orchestrator")
 
 
 async def run_pm_job(
@@ -26,7 +26,7 @@ async def run_pm_job(
     jobs: Optional[MutableMapping[str, Any]] = None,
     config_path: str | Path = "config.yaml",
 ) -> Dict[str, Any]:
-    """Run the PM multi-agent workflow and update the API jobs store."""
+    """Run the HVAC operations workflow and update the API jobs store."""
 
     memory: Dict[str, Any] = {}
 
@@ -50,7 +50,7 @@ async def run_pm_job(
     base_common = {"config_path": config_path, "memory": memory}
 
     try:
-        _set_job(jobs, job_id, status="RUNNING", progress=0.02, details="AgentForge PM job started.")
+        _set_job(jobs, job_id, status="RUNNING", progress=0.02, details="HVAC OpsForge job started.")
 
         architect = LeadArchitect(**base_common, progress_callback=scoped_progress(0.02, 0.25))
         architect_result = await architect.run(context)
@@ -60,12 +60,12 @@ async def run_pm_job(
         project_data = architect_result.data["project_data"]
         execution_plan = architect_result.data["execution_plan"]
 
-        requirements = RequirementsAgent(**base_common, progress_callback=scoped_progress(0.25, 0.42))
-        req_result = await requirements.run(context, {"project_data": project_data, "execution_plan": execution_plan})
+        inventory = InventoryForecasterAgent(**base_common, progress_callback=scoped_progress(0.25, 0.42))
+        req_result = await inventory.run(context, {"project_data": project_data, "execution_plan": execution_plan})
         if not req_result.success:
             raise RuntimeError("; ".join(req_result.errors))
 
-        risk = RiskForecasterAgent(**base_common, progress_callback=scoped_progress(0.42, 0.62))
+        risk = RiskAssessorAgent(**base_common, progress_callback=scoped_progress(0.42, 0.62))
         risk_result = await risk.run(context, {**req_result.data, "project_data": project_data})
         if not risk_result.success:
             raise RuntimeError("; ".join(risk_result.errors))
@@ -75,8 +75,8 @@ async def run_pm_job(
         if not schedule_result.success:
             raise RuntimeError("; ".join(schedule_result.errors))
 
-        reporter = ReportGeneratorAgent(**base_common, progress_callback=scoped_progress(0.82, 0.98))
-        report_result = await reporter.run(context, {**req_result.data, **risk_result.data, **schedule_result.data})
+        ar_collector = ARCollectorAgent(**base_common, progress_callback=scoped_progress(0.82, 0.98))
+        report_result = await ar_collector.run(context, {**req_result.data, **risk_result.data, **schedule_result.data})
         if not report_result.success:
             raise RuntimeError("; ".join(report_result.errors))
 
@@ -87,11 +87,11 @@ async def run_pm_job(
             **schedule_result.data,
             **report_result.data,
         }
-        _set_job(jobs, job_id, status="COMPLETED", progress=1.0, details="AgentForge PM job complete.", result=result)
+        _set_job(jobs, job_id, status="COMPLETED", progress=1.0, details="HVAC OpsForge job complete.", result=result)
         return result
     except Exception as exc:
-        logger.exception("PM job failed: %s", job_id)
-        _set_job(jobs, job_id, status="FAILED", progress=1.0, details=f"AgentForge PM job failed: {exc}")
+        logger.exception("HVAC OpsForge job failed: %s", job_id)
+        _set_job(jobs, job_id, status="FAILED", progress=1.0, details=f"HVAC OpsForge job failed: {exc}")
         raise
 
 
