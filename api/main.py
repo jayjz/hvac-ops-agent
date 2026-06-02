@@ -8,11 +8,11 @@ from core.logging_config import configure_logging
 from core.orchestrator import run_pm_job
 
 configure_logging()
-logger = logging.getLogger("agentforge_pm.api")
+logger = logging.getLogger("hvac_opsforge.api")
 
 app = FastAPI(
-    title="AgentForge PM API",
-    description="API for multi-agent project management in HVAC, construction, and industrial automation.",
+    title="HVAC OpsForge API",
+    description="API for HVAC operations automation: inventory forecasting, job scheduling, and AR management.",
     version="1.0.0",
 )
 
@@ -20,7 +20,7 @@ app = FastAPI(
 
 class PMJobRequest(BaseModel):
     repo_url: str = Field(..., example="https://github.com/someuser/somerepo")
-    goals: List[str] = Field(..., example=["Build HVAC retrofit PM baseline", "Identify procurement risks"])
+    goals: List[str] = Field(..., example=["Forecast inventory for upcoming heat pump installs", "Optimize technician schedules for next week"])
     branch_name: str = Field("codeforge-modernized", example="feat/ai-upgrade")
     project_path: Optional[str] = Field(None, example="C:/projects/hvac-retrofit")
 
@@ -43,7 +43,7 @@ jobs: Dict[str, JobStatus] = {}
 # --- Background Tasks ---
 
 async def run_modernization_task(job_id: str, request: PMJobRequest):
-    """Run the AgentForge PM workflow for an accepted job."""
+    """Run the HVAC OpsForge workflow for an accepted job."""
     await run_pm_job(
         job_id=job_id,
         goals=request.goals,
@@ -56,7 +56,7 @@ async def run_modernization_task(job_id: str, request: PMJobRequest):
 
 @app.get("/api", tags=["Status"])
 def read_root():
-    return {"service": "CodeForge AI API", "status": "online"}
+    return {"service": "HVAC OpsForge API", "status": "online"}
 
 
 @app.post("/api/jobs", response_model=JobResponse, status_code=202, tags=["Jobs"])
@@ -65,7 +65,7 @@ async def start_modernization_job(
     background_tasks: BackgroundTasks
 ):
     """
-    Starts a new AgentForge PM job.
+    Starts a new HVAC OpsForge job.
     """
     job_id = str(uuid.uuid4())
     jobs[job_id] = JobStatus(job_id=job_id, status="PENDING", details="Job accepted and queued.")
@@ -75,13 +75,13 @@ async def start_modernization_job(
     return JobResponse(
         job_id=job_id,
         status="PENDING",
-        message="AgentForge PM job has been successfully queued."
+        message="HVAC OpsForge job has been successfully queued."
     )
 
 @app.get("/api/jobs/{job_id}", response_model=JobStatus, tags=["Jobs"])
 async def get_job_status(job_id: str):
     """
-    Retrieves the status of a specific modernization job.
+    Retrieves the status of a specific operations job.
     """
     job = jobs.get(job_id)
     if not job:

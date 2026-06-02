@@ -178,13 +178,13 @@ def analyze(path):
 
     console.print(f"\n[bold green]✅ Analysis Complete[/bold green]")
     
-    table = Table(title="[bold]Technical Debt Report[/bold]")
+    table = Table(title="[bold]Operations Health Report[/bold]")
     table.add_column("Category", style="cyan")
     table.add_column("Issues Found", style="magenta")
     table.add_column("Severity", style="red")
 
-    table.add_row("Outdated Dependencies", "5", "High")
-    table.add_row("Missing Documentation", "22", "Medium")
+    table.add_row("Low Stock Alerts", "5", "High")
+    table.add_row("Overdue Invoices", "22", "Medium")
     table.add_row("No Test Coverage", "11", "High")
     table.add_row("Code Smells", "4", "Low")
     
