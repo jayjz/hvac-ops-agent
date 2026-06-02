@@ -30,7 +30,7 @@ SUPPORTED_UPLOAD_TYPES = ["txt", "md", "csv", "xlsx", "xlsm", "pdf"]
 
 def main() -> None:
     st.set_page_config(
-        page_title="AgentForge PM",
+        page_title="HVAC OpsForge",
         page_icon="AF",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -68,10 +68,10 @@ def render_app_header() -> None:
                     <span class="product-icon">AF</span>
                     <span class="ai-badge">AI-Powered</span>
                 </div>
-                <h1>AgentForge PM</h1>
+                <h1>HVAC OpsForge</h1>
                 <p>
-                    Multi-agent project controls for HVAC retrofits, construction execution,
-                    automation scopes, and executive-ready PM baselines.
+                    Multi-agent operations co-pilot for HVAC and service businesses.
+                    Automates inventory forecasting, job scheduling, AR follow-ups, and operations intelligence.
                 </p>
             </div>
             <div class="hero-stat-grid">

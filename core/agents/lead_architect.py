@@ -173,8 +173,8 @@ class LeadArchitect(BaseAgent):
             },
             {
                 "id": "RPT-001",
-                "specialist": "report",
-                "objective": "Generate executive PM report with actions.",
+                "specialist": "ar_collector",
+                "objective": "Generate AR collection actions and operations summary.",
                 "inputs": ["requirements_register", "risk_register", "optimized_schedule"],
                 "expected_output": "pm_report",
             },
