@@ -1,166 +1,105 @@
-# CodeForgeSLM
+# HVAC OpsForge Agent
 
-**Autonomous multi-agent system for large-scale codebase modernization.** Lead Architect coordinates specialist agents to refactor, test, and document legacy code with minimal human intervention.
+**Gemini + MongoDB Powered Autonomous Operations Agent for HVAC & Small Trades Businesses**
 
-Legacy codebases cost engineering teams 30-40% velocity to technical debt. CodeForgeSLM acts as a team of expert AI engineers that analyzes your codebase, creates a modernization strategy, and executes it safely—handling everything from syntax upgrades to test generation.
-
----
-
-## Key Features
-
-→ **Autonomous Planning** — Lead Architect analyzes codebase and generates multi-step execution plans from high-level goals
-
-→ **Parallel Execution** — Specialist agents (syntax, dependencies, docs, testing, security) work concurrently on isolated tasks
-
-→ **Safe Refactoring** — Git-based workflow with atomic commits, rollback capability, and preservation of business logic
-
-→ **Comprehensive Modernization** — Beyond syntax: dependency management, Google-style docstrings, pytest generation, security review
-
-→ **Production Architecture** — FastAPI + PostgreSQL + Redis, designed for long-running jobs and horizontal scaling
-
-→ **Multi-Language** — Extensible architecture supporting Python, JavaScript, TypeScript, and more
+**Google Cloud Rapid Agent Hackathon 2026** — MongoDB Track Submission
 
 ---
 
-## Architecture
+## Elevator Pitch
+An intelligent multi-agent system that autonomously handles core operations for small HVAC and service businesses: **inventory forecasting, job scheduling, accounts receivable follow-ups, and parts ordering** — turning chaotic operations into streamlined, proactive workflows.
 
-```mermaid
-graph TD
-    A[CLI / Web UI] --> B[FastAPI Server]
-    B --> C[Job Queue]
-    C --> D[PostgreSQL]
-    B --> E[CodeForgeSLM Core]
-    E --> F[Lead Architect]
-    F --> G[Execution Plan]
-    G --> H[Specialist Agents]
-    H --> I[Syntax Agent]
-    H --> J[Testing Agent]
-    H --> K[Docs Agent]
-    H --> L[Security Agent]
-    I --> M[Git Operations]
-    J --> M
-    K --> M
-    L --> M
-    M --> N[Modernized Codebase]
-```
-
-**Flow:** User submits goals → Lead Architect analyzes repo and creates plan → Specialist agents execute in parallel → Changes committed to new branch → Results validated and reported
+Built with **Google Cloud Agent Builder + Gemini 2.5** and powered by **MongoDB MCP** for persistent memory and real-time data actions.
 
 ---
 
-## Quick Start
+## The Problem (Real-World HVAC Pain)
+From 10+ years running HVAC operations:
+- Technicians show up to jobs with wrong/missing parts
+- Cash flow suffers from slow AR follow-ups
+- Manual scheduling leads to inefficient routes and overtime
+- Owners spend nights in spreadsheets instead of growing the business
 
-**Docker (Recommended)**
-```bash
-git clone https://github.com/jayjz/CodeForgeSLM.git
-cd CodeForgeSLM
-cp .env.example .env
-# Add your OPENAI_API_KEY to .env
-docker-compose up --build -d
-```
-
-Access:
-- Web Dashboard: http://localhost:8080
-- API Docs: http://localhost:8000/docs
-
-**Local Development**
-```bash
-pip install -r requirements.txt
-python -m app.main
-```
-
-**CLI Usage**
-```bash
-# Dry run analysis
-python cli.py modernize https://github.com/user/repo \
-  -g "Upgrade to Python 3.11" \
-  -g "Add comprehensive documentation" \
-  --dry-run
-
-# Execute modernization
-python cli.py modernize https://github.com/user/repo \
-  -g "Upgrade to Python 3.11" \
-  -g "Generate unit tests with pytest" \
-  --branch "feat/auto-upgrade-py311"
-```
+**HVAC OpsForge Agent** solves this by acting as a proactive Operations Co-Pilot.
 
 ---
 
-## Results & Impact
+## Key Features (What the Agent Actually Does)
 
-**Production Deployments:**
-- 40,000+ lines of code autonomously refactored across multiple codebases
-- 60% average reduction in technical debt metrics
-- 95%+ test coverage maintained through automated test generation
-- Zero production incidents from automated changes
+- **Inventory Forecasting & Reordering** — Predicts part needs based on upcoming jobs and historical usage
+- **Smart Job Scheduling** — Optimizes technician assignments considering skills, location, and urgency
+- **Automated AR Follow-ups** — Identifies overdue invoices and drafts professional reminders
+- **Parts Ordering Assistant** — Checks stock, finds suppliers, and prepares purchase orders
+- **Risk & Opportunity Detection** — Flags potential issues (low stock, delayed payments, scheduling conflicts)
 
-**Performance:**
-- Parallel agent execution reduces modernization time by 70% vs sequential approaches
-- Average job completion: 15-45 minutes for medium-sized repositories (5k-20k LOC)
-- Supports repositories up to 100k+ LOC with chunked processing
-
-**Cost Efficiency:**
-- Reduces manual refactoring effort by 80-90%
-- Eliminates context-switching overhead for engineering teams
-- Payback period typically < 2 months for teams with significant tech debt
+The agent doesn't just chat — it **plans, executes tools, updates MongoDB, and keeps humans in the loop** for final approval.
 
 ---
 
 ## Tech Stack
 
-**Core:** Python 3.11+ • FastAPI • PostgreSQL • Redis • Docker  
-**AI:** LangGraph • LiteLLM • SLM fine-tuning • AST manipulation  
-**Testing:** pytest • Coverage.py • Mutation testing  
-**Infra:** GitPython • Docker Compose • OpenTelemetry
+- **Core Reasoning**: Google Gemini via Cloud Agent Builder
+- **Memory & State**: MongoDB Atlas + Model Context Protocol (MCP)
+- **Agent Architecture**: Multi-agent orchestrator (Lead Architect + Specialist Agents)
+- **Frontend**: Streamlit dashboard
+- **Backend**: FastAPI + Python
+- **Deployment**: Docker + Google Cloud Run (recommended)
 
 ---
 
-## Current Status & Roadmap
+## Architecture
 
-**Current (v0.8):**
-- ✅ Multi-agent orchestration with Lead Architect pattern
-- ✅ Python, JavaScript, TypeScript support
-- ✅ Automated test generation and validation
-- ✅ Git-based workflow with branch management
-- ✅ Web dashboard and CLI interfaces
-- ✅ Docker deployment
-
-**In Development:**
-- Enhanced security agent with SAST integration
-- Custom agent training pipeline
-- Performance profiling and optimization suggestions
-- IDE extensions (VS Code, JetBrains)
-
-**Roadmap:**
-- Go, Rust, Java language support
-- Enterprise SSO and RBAC
-- On-premise deployment tooling
-- Advanced dependency vulnerability scanning
+1. **Lead Architect Agent** — Receives high-level goals and creates execution plans
+2. **Specialist Agents**:
+   - InventoryForecaster
+   - SchedulerOptimizer
+   - ARCollector
+   - PartsOrderer
+   - RiskAssessor
+3. **Tool Integration** via MongoDB MCP (read/write jobs, inventory, customers)
+4. **Human-in-the-Loop** approval system for all actions
 
 ---
 
-## Development
+## Hackathon Submission Details
 
-```bash
-# Install dependencies
+**Track**: MongoDB  
+**Goal**: Demonstrate a functional agent that uses Gemini reasoning + MongoDB MCP to solve real operational challenges in the trades industry.
+
+**Live Demo**: (Will be added after deployment)  
+**Video Demo**: (Will be recorded)
+
+---
+
+## Quick Start (Local Development)
+
+# 1. Clone
+git clone https://github.com/jayjz/hvac-ops-agent.git
+cd hvac-ops-agent
+
+# 2. Environment
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-pip install -r requirements-dev.txt
 
-# Run tests
-pytest tests/ -v
+# 3. Environment variables
+cp .env.example .env
+# Add your Gemini API key + MongoDB Atlas connection string
 
-# Start API server
-uvicorn app.main:app --reload
+# 4. Run
+streamlit run streamlit_app.py
 
-# Run linting
-ruff check .
-ruff format .
-```
+# Project Status (June 2026)
 
----
+Multi-agent orchestration framework ported and pivoted
+MongoDB MCP integration in progress
+Sample HVAC dataset included
+Working towards full end-to-end flows for hackathon deadline
 
-<div align="center">
-<sub>Built for teams drowning in technical debt • Production-tested • Open source</sub>
-<br>
-<sub>Part of the <a href="https://github.com/jayjz">jayjz</a> autonomous systems toolkit</sub>
-</div>
+
+# Why This Matters
+This isn't another generic AI demo. It's built by someone who has actually run HVAC operations for over a decade. The goal is practical impact for thousands of small service businesses.
+Future Vision: Turn this into a commercial AI Operations Co-Pilot SaaS for trades companies.
+
+# Made for the Google Cloud Rapid Agent Hackathon 2026
+License: MIT
