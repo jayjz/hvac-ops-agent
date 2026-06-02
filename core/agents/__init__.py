@@ -1,11 +1,11 @@
-"""AgentForge PM agent package."""
+"""HVAC OpsForge agent package."""
 
 from core.agents.base import AgentContext, AgentResult, BaseAgent, ProgressCallback
 from core.agents.lead_architect import LeadArchitect
 from core.agents.specialists import (
-    ReportGeneratorAgent,
-    RequirementsAgent,
-    RiskForecasterAgent,
+    ARCollectorAgent,
+    InventoryForecasterAgent,
+    RiskAssessorAgent,
     SchedulerOptimizerAgent,
 )
 
@@ -15,8 +15,8 @@ __all__ = [
     "BaseAgent",
     "LeadArchitect",
     "ProgressCallback",
-    "ReportGeneratorAgent",
-    "RequirementsAgent",
-    "RiskForecasterAgent",
+    "ARCollectorAgent",
+    "InventoryForecasterAgent",
+    "RiskAssessorAgent",
     "SchedulerOptimizerAgent",
 ]
