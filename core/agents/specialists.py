@@ -27,8 +27,8 @@ class InventoryForecasterAgent(BaseAgent):
         
         if mongodb:
             try:
-                upcoming_jobs = await asyncio.to_thread(mongodb.get_upcoming_jobs, days_ahead=14)
-                inventory_levels = await asyncio.to_thread(mongodb.get_inventory_levels, low_stock_threshold=20)
+                upcoming_jobs = await asyncio.to_thread(mongodb.get_upcoming_jobs, days=14)
+                inventory_levels = await asyncio.to_thread(mongodb.get_low_inventory, threshold_multiplier=1.2)
                 await self.report_progress(context, 0.50, f"Found {len(upcoming_jobs)} upcoming jobs and {len(inventory_levels)} low-stock items.")
             except Exception as exc:
                 self.logger.warning("MongoDB query failed, using fallback data: %s", exc)
@@ -367,7 +367,7 @@ class ARCollectorAgent(BaseAgent):
         overdue_invoices = []
         if mongodb:
             try:
-                overdue_invoices = await asyncio.to_thread(mongodb.get_overdue_invoices, days_overdue=30)
+                overdue_invoices = await asyncio.to_thread(mongodb.get_overdue_invoices, days=30)
                 await self.report_progress(context, 0.50, f"Found {len(overdue_invoices)} overdue invoices.")
             except Exception as exc:
                 self.logger.warning("MongoDB query failed, using synthetic data: %s", exc)
