@@ -1,4 +1,4 @@
-"""Specialist PM agents for AgentForge PM."""
+"""Specialist HVAC operations agents for HVAC OpsForge."""
 
 from __future__ import annotations
 
@@ -10,19 +10,19 @@ from typing import Any, Dict, List
 from core.agents.base import AgentContext, AgentResult, BaseAgent
 
 
-class RequirementsAgent(BaseAgent):
-    """Extract scope, stakeholder, and acceptance requirements."""
+class InventoryForecasterAgent(BaseAgent):
+    """Forecast inventory needs based on upcoming jobs and historical usage."""
 
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(name="requirements", **kwargs)
+        super().__init__(name="inventory_forecaster", **kwargs)
 
     async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
         project_data = payload.get("project_data", {})
-        await self.report_progress(context, 0.20, "Reading PM source material for requirements.")
+        await self.report_progress(context, 0.20, "Analyzing upcoming jobs and inventory levels.")
         requirements = await asyncio.to_thread(self._extract_requirements, project_data, context.goals)
-        await self.report_progress(context, 0.70, "Prioritizing requirements and acceptance criteria.")
+        await self.report_progress(context, 0.70, "Forecasting parts needs and reorder points.")
         self.remember("requirements_register", requirements)
-        await self.report_progress(context, 0.90, "Requirements register ready.")
+        await self.report_progress(context, 0.90, "Inventory forecast ready.")
         return AgentResult(agent=self.name, success=True, data={"requirements_register": requirements})
 
     def _extract_requirements(self, project_data: Dict[str, Any], goals: List[str]) -> List[Dict[str, Any]]:
@@ -63,18 +63,18 @@ class RequirementsAgent(BaseAgent):
         return requirements
 
 
-class RiskForecasterAgent(BaseAgent):
-    """Forecast delivery, safety, procurement, stakeholder, and financial risks."""
+class RiskAssessorAgent(BaseAgent):
+    """Assess operational risks: low stock, delayed payments, scheduling conflicts."""
 
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(name="risk", **kwargs)
+        super().__init__(name="risk_assessor", **kwargs)
 
     async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
-        await self.report_progress(context, 0.20, "Preparing risk model inputs.")
+        await self.report_progress(context, 0.20, "Analyzing inventory, AR, and scheduling data.")
         risk_register = await asyncio.to_thread(self._forecast, payload)
-        await self.report_progress(context, 0.70, "Scoring risk probability and impact.")
+        await self.report_progress(context, 0.70, "Identifying operational risks and opportunities.")
         self.remember("risk_register", risk_register)
-        await self.report_progress(context, 0.90, "Risk register ready.")
+        await self.report_progress(context, 0.90, "Risk assessment complete.")
         return AgentResult(agent=self.name, success=True, data={"risk_register": risk_register})
 
     def _forecast(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -117,15 +117,15 @@ class RiskForecasterAgent(BaseAgent):
 
 
 class SchedulerOptimizerAgent(BaseAgent):
-    """Optimize PM schedule sequencing and critical path."""
+    """Optimize technician job scheduling considering skills, location, and urgency."""
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="scheduler", **kwargs)
 
     async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
-        await self.report_progress(context, 0.20, "Preparing schedule constraints.")
+        await self.report_progress(context, 0.20, "Loading technician schedules and job requirements.")
         schedule = await asyncio.to_thread(self._optimize, payload)
-        await self.report_progress(context, 0.70, "Calculating critical path and duration.")
+        await self.report_progress(context, 0.70, "Optimizing routes and technician assignments.")
         self.remember("optimized_schedule", schedule)
         await self.report_progress(context, 0.90, "Optimized schedule ready.")
         return AgentResult(agent=self.name, success=True, data={"optimized_schedule": schedule})
@@ -229,18 +229,18 @@ class SchedulerOptimizerAgent(BaseAgent):
         return max((score(name) for name in by_name), key=lambda item: item[0])[1]
 
 
-class ReportGeneratorAgent(BaseAgent):
-    """Generate executive PM reports and risk visualizations."""
+class ARCollectorAgent(BaseAgent):
+    """Manage accounts receivable: identify overdue invoices and draft reminders."""
 
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(name="report", **kwargs)
+        super().__init__(name="ar_collector", **kwargs)
 
     async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
-        await self.report_progress(context, 0.20, "Compiling PM report inputs.")
+        await self.report_progress(context, 0.20, "Fetching AR aging and overdue invoices.")
         report = await asyncio.to_thread(self._generate, payload)
-        await self.report_progress(context, 0.70, "Building executive summary and visuals.")
+        await self.report_progress(context, 0.70, "Drafting reminder communications.")
         self.remember("pm_report", report)
-        await self.report_progress(context, 0.90, "PM report ready.")
+        await self.report_progress(context, 0.90, "AR collection actions ready.")
         return AgentResult(agent=self.name, success=True, data={"pm_report": report})
 
     def _generate(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -250,15 +250,15 @@ class ReportGeneratorAgent(BaseAgent):
         chart_path = self._risk_chart(risks)
         high_risks = [risk for risk in risks if risk.get("severity") == "High"]
         return {
-            "summary": "PM baseline generated for HVAC, construction, and industrial automation delivery.",
+            "summary": "HVAC operations analysis complete: inventory forecast, risk assessment, and schedule optimization.",
             "requirements_count": len(requirements),
             "high_risk_count": len(high_risks),
             "planned_duration_days": schedule.get("duration_days"),
             "critical_path": schedule.get("critical_path", []),
             "recommended_actions": [
-                "Review requirements register with owner and discipline leads.",
-                "Start procurement risk mitigation for long-lead equipment.",
-                "Use the optimized schedule as the baseline for weekly variance tracking.",
+                "Review inventory forecast and place orders for low-stock items.",
+                "Follow up on overdue invoices identified in AR aging.",
+                "Confirm technician assignments for upcoming jobs.",
             ],
             "risk_chart_path": chart_path,
         }
@@ -277,9 +277,9 @@ class ReportGeneratorAgent(BaseAgent):
             fig, ax = plt.subplots(figsize=(9, 4))
             ax.barh(labels, scores, color="#2f6f73")
             ax.set_xlabel("Risk score")
-            ax.set_title("Top PM Risks")
+            ax.set_title("Top Operational Risks")
             fig.tight_layout()
-            output = Path(tempfile.gettempdir()) / "agentforge_pm_risk_chart.png"
+            output = Path(tempfile.gettempdir()) / "hvac_ops_risk_chart.png"
             fig.savefig(output)
             plt.close(fig)
             return str(output)
