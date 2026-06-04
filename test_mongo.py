@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.tools.mongodb_tools import MongoDBTools
+from core.agents.specialists import InventoryForecasterAgent
+import pytest
 
 
 def test_mongodb_connection():
@@ -52,7 +54,7 @@ def test_mongodb_connection():
         print("\nTo fix:")
         print("1. Ensure MongoDB is running (local or Atlas)")
         print("2. Set MONGO_URI environment variable if using Atlas:")
-        print("   export MONGO_URI='mongodb+srv://user:pass@cluster.mongodb.net/'")
+        print("   export MONGO_URI='mongodb+srv://user:***@cluster.mongodb.net/'")
         print("3. Or update core/tools/mongodb_tools.py with your connection string")
         return False
         
@@ -174,6 +176,43 @@ def create_sample_data():
         print(f"✗ Failed to create sample data: {exc}")
     finally:
         mongo.disconnect()
+
+
+# TDD RED PHASE for generate_pre_departure_report (hvac-parts-availability-checker skill)
+# Tests define expected Markdown report with summary, risk flags, table, recommendations.
+# Surgical addition ONLY to test_mongo.py per rules. No code in specialists.py or mongodb_tools.py yet.
+# Reuses existing InventoryForecasterAgent synthetic paths, _forecast_inventory_needs, MongoDBTools fallbacks.
+# These will fail (AttributeError on missing method) - mandatory RED per test-driven-development skill.
+
+
+def test_generate_pre_departure_report_returns_markdown_with_all_sections():
+    """RED: Method must produce structured report with all sections and risk indicators.
+    Fails because generate_pre_departure_report does not exist yet on InventoryForecasterAgent.
+    """
+    agent = InventoryForecasterAgent()
+    jobs = ["job_001", "job_002"]
+    report = agent.generate_pre_departure_report(jobs)
+    assert isinstance(report, str), "Must return string Markdown"
+    assert "# Pre-Departure Parts Availability Report" in report, "Must have standard header"
+    assert "Summary" in report, "Must include executive summary with job/risk counts"
+    assert "Risk Flags" in report, "Must have risk section with ❌/🟡/✅"
+    assert "Parts Status" in report, "Must include Markdown table of SKUs/required/current/shortage"
+    assert "Immediate Actions" in report or "recommendations" in report.lower(), "Must have actionable recommendations for techs"
+    assert any(f in report for f in ["❌", "Critical", "🟡", "Warning", "✅", "OK"]), "Must use visual risk indicators"
+
+
+def test_generate_pre_departure_report_handles_synthetic_fallback_and_validation():
+    """RED: Must handle synthetic fallback (existing in specialists.py + mongodb_tools.py), raise on bad input.
+    Tests integration with _get_synthetic_jobs, get_upcoming_jobs fallback, error handling per skill.
+    """
+    agent = InventoryForecasterAgent()
+    # Synthetic path (no real Mongo)
+    report = agent.generate_pre_departure_report(["ac_repair"])
+    assert isinstance(report, str)
+    assert any(word in report.lower() for word in ["synthetic", "fallback", "cached", "using sample"]), "Should document fallback"
+    # Validation edge case
+    with pytest.raises((ValueError, TypeError, AttributeError)):
+        agent.generate_pre_departure_report([])  # Empty should trigger validation per skill
 
 
 if __name__ == "__main__":
