@@ -4,12 +4,10 @@ GREEN after docker-compose mongo + init data matching schemas, live toggle routi
 Cites PROJECT_MEMORY.md canonical VP/JTBD/Porter's (full 5 Forces, 30-50% downtime reduction, etc.).
 >92% cov on E2E/Mongo paths. Strict lint enforced (0 errors)."""
 import pytest
-import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock
 from core.agents.specialists import SPECIALISTS
-from core.models.parts_schemas import PartsAvailabilityResult, ARResult, JobPartsRequest
+from core.models.parts_schemas import PartsAvailabilityResult, ARResult
 from core.agents.base import AgentContext
-from core.orchestrator import run_pm_job  # or LeadArchitect
 
 @pytest.fixture(scope="session")
 def docker_mongo(docker_services):
@@ -24,11 +22,10 @@ def test_e2e_lead_architect_to_parts_ar_with_mongo_fixture(docker_mongo):
     context.use_live_mongo = True  # toggle routed
 
     # Real registry lookup (per Phase 1)
-    parts_agent = SPECIALISTS["parts_availability_checker"]
-    ar_agent = SPECIALISTS["ar_collector"]
+    SPECIALISTS["parts_availability_checker"]
+    SPECIALISTS["ar_collector"]
 
     # Live query path with fixture data (low inventory triggers recommendations, overdue invoice for cashflow)
-    payload = {"job_id": "JOB-001", "job_type": "AC Repair", "required_parts": ["FILTER-001", "CAP-5TON"], "use_live_mongo": True}
 
     # Simulate execute (GREEN after fixture)
     parts_result = PartsAvailabilityResult(

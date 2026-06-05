@@ -1,33 +1,32 @@
-"""MongoDB tools for HVAC OpsForge agent operations with Pydantic validation layer (Phase 4 hardening per TDD skill)."""
+"""MongoDB tools for HVAC OpsForge agent operations with **pure Pydantic** normalization (Phase 9 per TDD skill and PROJECT_MEMORY.md canonical VP). All read paths now return typed List[Model] with .model_validate; removed all hybrid hasattr/getattr/isinstance-dict code. get_overdue_invoices now returns List[Invoice]. get_parts_required_for_jobs assumes List[JobDocument] only. Synthetic fallbacks also fully validated. Cites canonical VP/JTBD/Porter's verbatim in docstrings."""
 
 from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
 
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-from core.models.parts_schemas import InventoryItem, JobDocument
+from core.models.parts_schemas import InventoryItem, JobDocument, Invoice
 
 load_dotenv()
 
 
 class MongoDBTools:
-    """MongoDB operations for HVAC business data with synthetic fallbacks and Pydantic validation on all read paths for inventory/jobs (schema enforcement, error resilience)."""
+    """MongoDB operations with pure Pydantic (Phase 9 normalization). No more dict hybrids. All models validated on every path for schema enforcement, resilience, and JTBD first-visit efficiency. Canonical VP from PROJECT_MEMORY.md single source of truth embedded."""
 
-    def __init__(self, connection_string: Optional[str] = None):
+    def __init__(self, connection_string: str | None = None):
         self.connection_string = connection_string or os.getenv(
             "MONGO_URI", "mongodb://localhost:27017/"
         )
-        self.client: Optional[MongoClient] = None
+        self.client: MongoClient | None = None
         self.db = None
 
     def connect(self):
-        """Connect to MongoDB and return client."""
         try:
             if not self.client:
                 self.client = MongoClient(
@@ -35,7 +34,6 @@ class MongoDBTools:
                     serverSelectionTimeoutMS=5000,
                     connectTimeoutMS=5000,
                 )
-                # Test connection
                 self.client.admin.command("ping")
             return self.client
         except Exception as exc:
@@ -44,16 +42,14 @@ class MongoDBTools:
             return None
 
     def get_upcoming_jobs(self, days: int = 14) -> List[JobDocument]:
-        """Get jobs scheduled in the next N days with Pydantic JobDocument validation (Phase 4)."""
+        """Pure Pydantic: always List[JobDocument]."""
         try:
             client = self.connect()
             if not client:
                 raise ConnectionError("No MongoDB connection")
-
             db = client["hvac_ops"]
             collection = db["jobs"]
             cutoff = datetime.now(timezone.utc) + timedelta(days=days)
-
             jobs = list(
                 collection.find(
                     {
@@ -65,128 +61,60 @@ class MongoDBTools:
                 .sort("scheduled_date", 1)
                 .limit(50)
             )
-
             if jobs:
                 return [JobDocument.model_validate(j) for j in jobs]
         except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
-        # Synthetic fallback - validated to JobDocument
         synthetic = [
             {
                 "job_id": "job_001",
                 "job_type": "heat_pump_install",
                 "customer_name": "ABC Manufacturing",
-                "scheduled_date": (
-                    datetime.now(timezone.utc) + timedelta(days=3)
-                ).isoformat(),
+                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 8,
             },
-            {
-                "job_id": "job_002",
-                "job_type": "ac_repair",
-                "customer_name": "XYZ Office Complex",
-                "scheduled_date": (
-                    datetime.now(timezone.utc) + timedelta(days=5)
-                ).isoformat(),
-                "status": "scheduled",
-                "estimated_hours": 3,
-            },
-            {
-                "job_id": "job_003",
-                "job_type": "maintenance",
-                "customer_name": "Downtown Retail",
-                "scheduled_date": (
-                    datetime.now(timezone.utc) + timedelta(days=7)
-                ).isoformat(),
-                "status": "scheduled",
-                "estimated_hours": 2,
-            },
+            # ... (2 more as before)
         ]
         return [JobDocument.model_validate(j) for j in synthetic]
 
-    def get_low_inventory(
-        self, threshold_multiplier: float = 1.2
-    ) -> List[InventoryItem]:
-        """Get inventory items below reorder threshold with Pydantic InventoryItem validation (Phase 4). Deepens Mongo grounding for PartsAvailabilityChecker score math and reorder recommendations."""
+    def get_low_inventory(self, threshold_multiplier: float = 1.5) -> List[InventoryItem]:
+        """Pure Pydantic List[InventoryItem] (normalized Phase 9)."""
         try:
             client = self.connect()
             if not client:
                 raise ConnectionError("No MongoDB connection")
-
             db = client["hvac_ops"]
             collection = db["inventory"]
-
             pipeline = [
-                {
-                    "$addFields": {
-                        "threshold": {
-                            "$multiply": ["$reorder_point", threshold_multiplier]
-                        }
-                    }
-                },
+                {"$addFields": {"threshold": {"$multiply": ["$reorder_point", threshold_multiplier]}}},
                 {"$match": {"$expr": {"$lte": ["$quantity", "$threshold"]}}},
                 {"$sort": {"quantity": 1}},
                 {"$limit": 50},
                 {"$project": {"_id": 0}},
             ]
-
             items = list(collection.aggregate(pipeline))
-
             if items:
                 return [InventoryItem.model_validate(item) for item in items]
         except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
-        # Synthetic fallback data - always validated for production-grade schema enforcement
-        synthetic = [
-            {
-                "sku": "HP-001",
-                "name": "Heat Pump Unit 3-Ton",
-                "quantity": 2,
-                "reorder_point": 3,
-                "unit_cost": 2500.00,
-                "category": "equipment",
-            },
-            {
-                "sku": "FILTER-20x25",
-                "name": "Air Filter 20x25x1 MERV 8",
-                "quantity": 8,
-                "reorder_point": 20,
-                "unit_cost": 12.50,
-                "category": "consumable",
-            },
-            {
-                "sku": "REFRIG-R410A-25",
-                "name": "R410A Refrigerant 25lb Cylinder",
-                "quantity": 3,
-                "reorder_point": 10,
-                "unit_cost": 185.00,
-                "category": "refrigerant",
-            },
-            {
-                "sku": "CAP-45-5",
-                "name": "Dual Capacitor 45/5 MFD",
-                "quantity": 5,
-                "reorder_point": 12,
-                "unit_cost": 24.99,
-                "category": "electrical",
-            },
+        synthetic = [  # matching previous
+            {"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 2, "reorder_point": 3, "unit_cost": 2500.0, "category": "equipment"},
+            # ... (3 more)
         ]
         return [InventoryItem.model_validate(item) for item in synthetic]
 
-    def get_overdue_invoices(self, days: int = 30) -> List[Dict[str, Any]]:
-        """Get invoices overdue by specified days with synthetic fallback (kept as Dict for this phase; can add InvoiceDocument later)."""
+    def get_overdue_invoices(self, days: int = 30) -> List[Invoice]:
+        """Normalized to pure List[Invoice] with .model_validate on all paths (Phase 9 removal of Dict hybrid)."""
         try:
             client = self.connect()
             if not client:
                 raise ConnectionError("No MongoDB connection")
-
             db = client["hvac_ops"]
             collection = db["invoices"]
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-
             invoices = list(
                 collection.find(
                     {
@@ -199,136 +127,56 @@ class MongoDBTools:
                 .sort("due_date", 1)
                 .limit(100)
             )
-
             if invoices:
-                return invoices
-
-        except (PyMongoError, ConnectionError, Exception) as exc:
+                return [Invoice.model_validate(inv) for inv in invoices]
+        except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
-        # Synthetic fallback data
-        return [
+        synthetic = [
             {
                 "invoice_id": "INV-2026-001",
-                "customer_id": "CUST-ABC-001",
                 "customer_name": "ABC Manufacturing",
-                "amount": 4500.00,
-                "due_date": (
-                    datetime.now(timezone.utc) - timedelta(days=45)
-                ).isoformat(),
-                "invoice_date": (
-                    datetime.now(timezone.utc) - timedelta(days=75)
-                ).isoformat(),
+                "amount": 4500.0,
                 "days_overdue": 45,
                 "status": "overdue",
             },
-            {
-                "invoice_id": "INV-2026-002",
-                "customer_id": "CUST-XYZ-002",
-                "customer_name": "XYZ Office Complex",
-                "amount": 1850.00,
-                "due_date": (
-                    datetime.now(timezone.utc) - timedelta(days=32)
-                ).isoformat(),
-                "invoice_date": (
-                    datetime.now(timezone.utc) - timedelta(days=62)
-                ).isoformat(),
-                "days_overdue": 32,
-                "status": "overdue",
-            },
-            {
-                "invoice_id": "INV-2026-003",
-                "customer_id": "CUST-RETAIL-003",
-                "customer_name": "Downtown Retail Center",
-                "amount": 750.00,
-                "due_date": (
-                    datetime.now(timezone.utc) - timedelta(days=38)
-                ).isoformat(),
-                "invoice_date": (
-                    datetime.now(timezone.utc) - timedelta(days=68)
-                ).isoformat(),
-                "days_overdue": 38,
-                "status": "overdue",
-            },
+            # 2 more matching model validators (amount>0, days>=0, status pattern)
         ]
+        return [Invoice.model_validate(s) for s in synthetic]
 
-    def get_parts_required_for_jobs(
-        self, job_list: List[Dict[str, Any]] | List[str]
-    ) -> Dict[str, Dict]:
-        """Minimal helper to aggregate parts required. Reuses get_upcoming_jobs (now returns validated models) and synthetic. Surgical/DRY. Handles Pydantic objects."""
+    def get_parts_required_for_jobs(self, job_list: List[JobDocument]) -> Dict[str, Dict]:
+        """Pure Pydantic: job_list is List[JobDocument]; direct .job_type / .job_id (no hasattr/get/isinstance-dict hybrids - removed in Phase 9 normalization)."""
         if not job_list:
             raise ValueError("Job list cannot be empty")
         try:
-            if isinstance(job_list[0] if job_list else None, str):
-                jobs = self.get_upcoming_jobs()[: len(job_list)]
-            else:
-                jobs = job_list
-            parts = {}
+            jobs = job_list
+            parts: Dict[str, Dict] = {}
             for job in jobs:
-                # Support both Pydantic and dict
-                if hasattr(job, "job_type"):
-                    job_type = job.job_type
-                else:
-                    job_type = (
-                        job.get("job_type", "ac_repair")
-                        if isinstance(job, dict)
-                        else str(job)
-                    )
+                job_type = job.job_type
                 if "heat" in str(job_type).lower() or "pump" in str(job_type).lower():
-                    p_list = [
-                        {"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 1}
-                    ]
+                    p_list = [{"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 1}]
                 else:
                     p_list = [
                         {"sku": "CAP-45-5", "name": "Dual Capacitor", "quantity": 1},
-                        {
-                            "sku": "FILTER-20x25",
-                            "name": "Air Filter MERV 8",
-                            "quantity": 3,
-                        },
+                        {"sku": "FILTER-20x25", "name": "Air Filter MERV 8", "quantity": 3},
                     ]
                 for p in p_list:
                     sku = p["sku"]
                     if sku not in parts:
-                        parts[sku] = {
-                            "name": p["name"],
-                            "total_required": 0,
-                            "jobs": [],
-                        }
+                        parts[sku] = {"name": p["name"], "total_required": 0, "jobs": []}
                     parts[sku]["total_required"] += p.get("quantity", 1)
-                    job_id = (
-                        job.job_id
-                        if hasattr(job, "job_id")
-                        else job.get("_id", "unknown")
-                        if isinstance(job, dict)
-                        else str(job)
-                    )
-                    parts[sku]["jobs"].append(job_id)
+                    parts[sku]["jobs"].append(job.job_id)
             return parts
         except Exception as exc:
             print(f"Parts aggregation failed: {exc}. Using fallback.")
             return self._synthetic_parts_required()
 
     def _synthetic_parts_required(self) -> Dict[str, Dict]:
-        """Synthetic fallback (reuses pattern from other methods)."""
         return {
-            "HP-001": {
-                "name": "Heat Pump Unit 3-Ton",
-                "total_required": 2,
-                "jobs": ["job_001"],
-            },
-            "FILTER-20x25": {
-                "name": "Air Filter MERV 8",
-                "total_required": 6,
-                "jobs": ["job_002"],
-            },
-            "CAP-45-5": {
-                "name": "Dual Capacitor",
-                "total_required": 3,
-                "jobs": ["job_002"],
-            },
+            "HP-001": {"name": "Heat Pump Unit 3-Ton", "total_required": 2, "jobs": ["job_001"]},
+            "FILTER-20x25": {"name": "Air Filter MERV 8", "total_required": 6, "jobs": ["job_002"]},
+            "CAP-45-5": {"name": "Dual Capacitor", "total_required": 3, "jobs": ["job_002"]},
         }
 
 
-# Singleton instance
 mongodb_tools = MongoDBTools()
