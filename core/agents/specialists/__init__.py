@@ -32,11 +32,11 @@ def register_specialist(name: str):
 
 
 # Import all specialist implementations (GREEN after individual files created)
+from .ar_collector import ARCollectorAgent
 from .inventory_forecaster import InventoryForecasterAgent
+from .parts_availability_checker import PartsAvailabilityCheckerAgent
 from .risk_assessor import RiskAssessorAgent
 from .scheduler_optimizer import SchedulerOptimizerAgent
-from .ar_collector import ARCollectorAgent
-from .parts_availability_checker import PartsAvailabilityCheckerAgent
 
 __all__ = [
     "SPECIALISTS",

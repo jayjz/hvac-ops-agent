@@ -6,9 +6,10 @@ JTBD: Real-time parts availability + reorder suggestions to avoid delays/multipl
 Porter's: Reduces supplier power via predictive data; counters substitutes with AI dashboard.
 """
 
-from ..base import BaseAgent
-from . import register_specialist
 from typing import Any, Dict
+
+from pydantic import ValidationError
+
 from core.agents.base import AgentContext, AgentResult
 from core.models.parts_schemas import (
     JobPartsRequest,
@@ -16,7 +17,9 @@ from core.models.parts_schemas import (
     ReorderRecommendation,
 )
 from core.tools.mongodb_tools import mongodb_tools
-from pydantic import ValidationError
+
+from ..base import BaseAgent
+from . import register_specialist
 
 
 @register_specialist("parts_availability_checker")
