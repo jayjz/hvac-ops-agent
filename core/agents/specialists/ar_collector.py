@@ -3,11 +3,15 @@ Follows TDD skill exactly: test failed on abstract 'execute' (RED watched), now 
 Registry consistent with PartsAvailabilityChecker (accepts same params). No ruff/mypy issues.
 Cites PROJECT_MEMORY.md canonical VP/JTBD/Porter's (supplier power reduced, rivalry via speed, substitutes countered by AI moat, 30-50% downtime reduction, 25% inventory, faster AR/cashflow).
 """
+
 from typing import Any, Dict, List, Optional
+
 from pydantic import ValidationError
+
 from core.agents.base import AgentContext, AgentResult
 from core.models.parts_schemas import ARResult, Invoice, PartsAvailabilityResult
 from core.tools.mongodb_tools import mongodb_tools
+
 from ..base import BaseAgent
 from . import register_specialist
 
@@ -27,7 +31,9 @@ class ARCollectorAgent(BaseAgent):
         """GREEN: Minimal impl passing TDD test. Uses validated invoices, computes cashflow_score, combines with parts if provided, respects toggle for Mongo."""
         try:
             await self.report_progress(
-                context, 0.3, f"ARCollector starting with live_mongo={use_live_mongo}, combining with parts"
+                context,
+                0.3,
+                f"ARCollector starting with live_mongo={use_live_mongo}, combining with parts",
             )
 
             if use_live_mongo:
@@ -39,10 +45,18 @@ class ARCollectorAgent(BaseAgent):
                 mongo_synced = False
 
             overdue_count = len(invoices)
-            total_overdue = sum(
-                getattr(inv, "amount", inv.get("amount", 0) if isinstance(inv, dict) else 0)
-                for inv in invoices
-            ) if invoices else 1250.0
+            total_overdue = (
+                sum(
+                    getattr(
+                        inv,
+                        "amount",
+                        inv.get("amount", 0) if isinstance(inv, dict) else 0,
+                    )
+                    for inv in invoices
+                )
+                if invoices
+                else 1250.0
+            )
             cashflow_score = max(0.45, 0.95 - (overdue_count * 0.18))
 
             recommendations = [
@@ -50,7 +64,9 @@ class ARCollectorAgent(BaseAgent):
                 "Schedule AR calls before next job dispatch",
             ]
             if parts_result and parts_result.availability_score < 0.8:
-                recommendations.append("Bundle AR collection with parts reorder to reduce trips")
+                recommendations.append(
+                    "Bundle AR collection with parts reorder to reduce trips"
+                )
                 combined = (cashflow_score + parts_result.availability_score) / 2
             else:
                 combined = None
@@ -65,7 +81,9 @@ class ARCollectorAgent(BaseAgent):
                 message="Full JTBD loop complete per PROJECT_MEMORY.md VP (30-50% downtime reduction)",
             )
 
-            await self.report_progress(context, 1.0, f"AR/Cashflow complete. Score: {cashflow_score:.2f}")
+            await self.report_progress(
+                context, 1.0, f"AR/Cashflow complete. Score: {cashflow_score:.2f}"
+            )
 
             return AgentResult(
                 agent=self.name,

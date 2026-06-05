@@ -2,10 +2,12 @@
 Strict adherence to test-driven-development skill: watched failures, minimal Green fixes, refactor for coverage >80%.
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
-from core.models import RequiredPart, AgentResult
+
 from core.agents.specialists import PartsAvailabilityCheckerAgent
+from core.models import AgentResult, RequiredPart
 
 
 @pytest.mark.asyncio

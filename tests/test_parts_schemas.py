@@ -2,10 +2,15 @@
 RED phase first: import fails, validation errors expected before implementation.
 JTBD: Real-time parts availability with structured data for dashboard and reordering.
 """
+
+from unittest.mock import MagicMock, patch
+
 import pytest
 from pydantic import ValidationError
-from unittest.mock import patch, MagicMock
-from core.agents.specialists.parts_availability_checker import PartsAvailabilityCheckerAgent
+
+from core.agents.specialists.parts_availability_checker import (
+    PartsAvailabilityCheckerAgent,
+)
 from core.models.parts_schemas import (
     JobPartsRequest,
     PartsAvailabilityResult,
@@ -36,7 +41,11 @@ def test_parts_availability_result():
     result = PartsAvailabilityResult(
         job_id="job-123",
         availability_score=0.92,
-        recommendations=[ReorderRecommendation(sku="HP-001", suggested_quantity=2, reason="low_stock")],
+        recommendations=[
+            ReorderRecommendation(
+                sku="HP-001", suggested_quantity=2, reason="low_stock"
+            )
+        ],
         mongo_synced=True,
     )
     assert result.availability_score > 0.8

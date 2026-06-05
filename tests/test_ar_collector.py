@@ -2,13 +2,16 @@
 RED phase first: watched ImportError (no ARResult), TypeError (abstract execute), AttributeError on mock (job_id), now GREEN after fixes.
 All ruff/mypy clean, cov >90% on new AR paths.
 """
-import pytest
+
 import asyncio
-from unittest.mock import MagicMock, AsyncMock
-from core.agents.specialists.ar_collector import ARCollectorAgent
-from core.models.parts_schemas import PartsAvailabilityResult
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from core.agents.base import AgentContext
 from core.agents.specialists import SPECIALISTS
+from core.agents.specialists.ar_collector import ARCollectorAgent
+from core.models.parts_schemas import PartsAvailabilityResult
 
 
 @pytest.mark.asyncio
@@ -37,9 +40,16 @@ async def test_ar_collector_toggle_routing_combined_cashflow():
 
     data = result.data if hasattr(result, "data") else result
     assert "cashflow_score" in str(data) or "cashflow_score" in data
-    cash_score = data.get("cashflow_score", 0) if isinstance(data, dict) else getattr(data, "cashflow_score", 0)
+    cash_score = (
+        data.get("cashflow_score", 0)
+        if isinstance(data, dict)
+        else getattr(data, "cashflow_score", 0)
+    )
     assert cash_score > 0.0
-    assert data.get("mongo_synced", False) is True or getattr(data, "mongo_synced", False) is True
+    assert (
+        data.get("mongo_synced", False) is True
+        or getattr(data, "mongo_synced", False) is True
+    )
 
 
 @pytest.mark.asyncio
@@ -61,7 +71,10 @@ async def test_registry_routing_for_toggle():
 
     data = result.data if hasattr(result, "data") else result
     assert "cashflow_score" in str(data) or "cashflow_score" in data
-    assert data.get("mongo_synced", True) is False or getattr(data, "mongo_synced", True) is False  # synthetic for False
+    assert (
+        data.get("mongo_synced", True) is False
+        or getattr(data, "mongo_synced", True) is False
+    )  # synthetic for False
 
 
 if __name__ == "__main__":
