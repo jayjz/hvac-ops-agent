@@ -12,7 +12,6 @@ from pymongo.errors import PyMongoError
 
 load_dotenv()
 
-
 class MongoDBTools:
     """MongoDB operations for HVAC business data with synthetic fallbacks."""
 
@@ -231,6 +230,41 @@ class MongoDBTools:
                 "status": "overdue",
             },
         ]
+
+    def get_parts_required_for_jobs(self, job_list: List[Dict[str, Any]] | List[str]) -> Dict[str, Dict]:
+        """Minimal helper to aggregate parts required. Reuses get_upcoming_jobs and synthetic. Surgical/DRY."""
+        if not job_list:
+            raise ValueError("Job list cannot be empty")
+        try:
+            if isinstance(job_list[0] if job_list else None, str):
+                jobs = self.get_upcoming_jobs()[:len(job_list)]
+            else:
+                jobs = job_list
+            parts = {}
+            for job in jobs:
+                job_type = job.get("job_type", "ac_repair") if isinstance(job, dict) else str(job)
+                if "heat" in str(job_type).lower() or "pump" in str(job_type).lower():
+                    p_list = [{"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 1}]
+                else:
+                    p_list = [{"sku": "CAP-45-5", "name": "Dual Capacitor", "quantity": 1}, {"sku": "FILTER-20x25", "name": "Air Filter MERV 8", "quantity": 3}]
+                for p in p_list:
+                    sku = p["sku"]
+                    if sku not in parts:
+                        parts[sku] = {"name": p["name"], "total_required": 0, "jobs": []}
+                    parts[sku]["total_required"] += p.get("quantity", 1)
+                    parts[sku]["jobs"].append(job.get("_id", "unknown"))
+            return parts
+        except Exception as exc:
+            print(f"Parts aggregation failed: {exc}. Using fallback.")
+            return self._synthetic_parts_required()
+
+    def _synthetic_parts_required(self) -> Dict[str, Dict]:
+        """Synthetic fallback (reuses pattern from other methods)."""
+        return {
+            "HP-001": {"name": "Heat Pump Unit 3-Ton", "total_required": 2, "jobs": ["job_001"]},
+            "FILTER-20x25": {"name": "Air Filter MERV 8", "total_required": 6, "jobs": ["job_002"]},
+            "CAP-45-5": {"name": "Dual Capacitor", "total_required": 3, "jobs": ["job_002"]},
+        }
 
 
 # Singleton instance
