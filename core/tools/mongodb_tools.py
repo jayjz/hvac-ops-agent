@@ -12,6 +12,7 @@ from pymongo.errors import PyMongoError
 
 load_dotenv()
 
+
 class MongoDBTools:
     """MongoDB operations for HVAC business data with synthetic fallbacks."""
 
@@ -29,10 +30,10 @@ class MongoDBTools:
                 self.client = MongoClient(
                     self.connection_string,
                     serverSelectionTimeoutMS=5000,
-                    connectTimeoutMS=5000
+                    connectTimeoutMS=5000,
                 )
                 # Test connection
-                self.client.admin.command('ping')
+                self.client.admin.command("ping")
             return self.client
         except Exception as exc:
             print(f"MongoDB connection failed: {exc}")
@@ -45,35 +46,39 @@ class MongoDBTools:
             client = self.connect()
             if not client:
                 raise ConnectionError("No MongoDB connection")
-            
+
             db = client["hvac_ops"]
             collection = db["jobs"]
             cutoff = datetime.now(timezone.utc) + timedelta(days=days)
-            
+
             jobs = list(
                 collection.find(
                     {
                         "scheduled_date": {"$lte": cutoff},
-                        "status": {"$in": ["scheduled", "confirmed"]}
+                        "status": {"$in": ["scheduled", "confirmed"]},
                     },
-                    {"_id": 0}
-                ).sort("scheduled_date", 1).limit(50)
+                    {"_id": 0},
+                )
+                .sort("scheduled_date", 1)
+                .limit(50)
             )
-            
+
             if jobs:
                 return jobs
             # If no jobs found, fall through to synthetic data
-            
+
         except (PyMongoError, ConnectionError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
-        
+
         # Synthetic fallback data
         return [
             {
                 "job_id": "job_001",
                 "job_type": "heat_pump_install",
                 "customer_name": "ABC Manufacturing",
-                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
+                "scheduled_date": (
+                    datetime.now(timezone.utc) + timedelta(days=3)
+                ).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 8,
             },
@@ -81,7 +86,9 @@ class MongoDBTools:
                 "job_id": "job_002",
                 "job_type": "ac_repair",
                 "customer_name": "XYZ Office Complex",
-                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
+                "scheduled_date": (
+                    datetime.now(timezone.utc) + timedelta(days=5)
+                ).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 3,
             },
@@ -89,47 +96,49 @@ class MongoDBTools:
                 "job_id": "job_003",
                 "job_type": "maintenance",
                 "customer_name": "Downtown Retail",
-                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+                "scheduled_date": (
+                    datetime.now(timezone.utc) + timedelta(days=7)
+                ).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 2,
             },
         ]
 
-    def get_low_inventory(self, threshold_multiplier: float = 1.2) -> List[Dict[str, Any]]:
+    def get_low_inventory(
+        self, threshold_multiplier: float = 1.2
+    ) -> List[Dict[str, Any]]:
         """Get inventory items below reorder threshold with synthetic fallback."""
         try:
             client = self.connect()
             if not client:
                 raise ConnectionError("No MongoDB connection")
-            
+
             db = client["hvac_ops"]
             collection = db["inventory"]
-            
+
             # Find items where quantity <= reorder_point * multiplier
             pipeline = [
                 {
                     "$addFields": {
-                        "threshold": {"$multiply": ["$reorder_point", threshold_multiplier]}
+                        "threshold": {
+                            "$multiply": ["$reorder_point", threshold_multiplier]
+                        }
                     }
                 },
-                {
-                    "$match": {
-                        "$expr": {"$lte": ["$quantity", "$threshold"]}
-                    }
-                },
+                {"$match": {"$expr": {"$lte": ["$quantity", "$threshold"]}}},
                 {"$sort": {"quantity": 1}},
                 {"$limit": 50},
-                {"$project": {"_id": 0}}
+                {"$project": {"_id": 0}},
             ]
-            
+
             items = list(collection.aggregate(pipeline))
-            
+
             if items:
                 return items
-            
+
         except (PyMongoError, ConnectionError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
-        
+
         # Synthetic fallback data
         return [
             {
@@ -172,31 +181,30 @@ class MongoDBTools:
             client = self.connect()
             if not client:
                 raise ConnectionError("No MongoDB connection")
-            
+
             db = client["hvac_ops"]
             collection = db["invoices"]
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-            
+
             invoices = list(
                 collection.find(
                     {
                         "status": {"$in": ["sent", "overdue", "pending"]},
                         "due_date": {"$lte": cutoff_date},
-                        "$or": [
-                            {"paid_date": None},
-                            {"paid_date": {"$exists": False}}
-                        ]
+                        "$or": [{"paid_date": None}, {"paid_date": {"$exists": False}}],
                     },
-                    {"_id": 0}
-                ).sort("due_date", 1).limit(100)
+                    {"_id": 0},
+                )
+                .sort("due_date", 1)
+                .limit(100)
             )
-            
+
             if invoices:
                 return invoices
-            
+
         except (PyMongoError, ConnectionError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
-        
+
         # Synthetic fallback data
         return [
             {
@@ -204,8 +212,12 @@ class MongoDBTools:
                 "customer_id": "CUST-ABC-001",
                 "customer_name": "ABC Manufacturing",
                 "amount": 4500.00,
-                "due_date": (datetime.now(timezone.utc) - timedelta(days=45)).isoformat(),
-                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=75)).isoformat(),
+                "due_date": (
+                    datetime.now(timezone.utc) - timedelta(days=45)
+                ).isoformat(),
+                "invoice_date": (
+                    datetime.now(timezone.utc) - timedelta(days=75)
+                ).isoformat(),
                 "days_overdue": 45,
                 "status": "overdue",
             },
@@ -214,8 +226,12 @@ class MongoDBTools:
                 "customer_id": "CUST-XYZ-002",
                 "customer_name": "XYZ Office Complex",
                 "amount": 1850.00,
-                "due_date": (datetime.now(timezone.utc) - timedelta(days=32)).isoformat(),
-                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=62)).isoformat(),
+                "due_date": (
+                    datetime.now(timezone.utc) - timedelta(days=32)
+                ).isoformat(),
+                "invoice_date": (
+                    datetime.now(timezone.utc) - timedelta(days=62)
+                ).isoformat(),
                 "days_overdue": 32,
                 "status": "overdue",
             },
@@ -224,33 +240,56 @@ class MongoDBTools:
                 "customer_id": "CUST-RETAIL-003",
                 "customer_name": "Downtown Retail Center",
                 "amount": 750.00,
-                "due_date": (datetime.now(timezone.utc) - timedelta(days=38)).isoformat(),
-                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=68)).isoformat(),
+                "due_date": (
+                    datetime.now(timezone.utc) - timedelta(days=38)
+                ).isoformat(),
+                "invoice_date": (
+                    datetime.now(timezone.utc) - timedelta(days=68)
+                ).isoformat(),
                 "days_overdue": 38,
                 "status": "overdue",
             },
         ]
 
-    def get_parts_required_for_jobs(self, job_list: List[Dict[str, Any]] | List[str]) -> Dict[str, Dict]:
+    def get_parts_required_for_jobs(
+        self, job_list: List[Dict[str, Any]] | List[str]
+    ) -> Dict[str, Dict]:
         """Minimal helper to aggregate parts required. Reuses get_upcoming_jobs and synthetic. Surgical/DRY."""
         if not job_list:
             raise ValueError("Job list cannot be empty")
         try:
             if isinstance(job_list[0] if job_list else None, str):
-                jobs = self.get_upcoming_jobs()[:len(job_list)]
+                jobs = self.get_upcoming_jobs()[: len(job_list)]
             else:
                 jobs = job_list
             parts = {}
             for job in jobs:
-                job_type = job.get("job_type", "ac_repair") if isinstance(job, dict) else str(job)
+                job_type = (
+                    job.get("job_type", "ac_repair")
+                    if isinstance(job, dict)
+                    else str(job)
+                )
                 if "heat" in str(job_type).lower() or "pump" in str(job_type).lower():
-                    p_list = [{"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 1}]
+                    p_list = [
+                        {"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 1}
+                    ]
                 else:
-                    p_list = [{"sku": "CAP-45-5", "name": "Dual Capacitor", "quantity": 1}, {"sku": "FILTER-20x25", "name": "Air Filter MERV 8", "quantity": 3}]
+                    p_list = [
+                        {"sku": "CAP-45-5", "name": "Dual Capacitor", "quantity": 1},
+                        {
+                            "sku": "FILTER-20x25",
+                            "name": "Air Filter MERV 8",
+                            "quantity": 3,
+                        },
+                    ]
                 for p in p_list:
                     sku = p["sku"]
                     if sku not in parts:
-                        parts[sku] = {"name": p["name"], "total_required": 0, "jobs": []}
+                        parts[sku] = {
+                            "name": p["name"],
+                            "total_required": 0,
+                            "jobs": [],
+                        }
                     parts[sku]["total_required"] += p.get("quantity", 1)
                     parts[sku]["jobs"].append(job.get("_id", "unknown"))
             return parts
@@ -261,9 +300,21 @@ class MongoDBTools:
     def _synthetic_parts_required(self) -> Dict[str, Dict]:
         """Synthetic fallback (reuses pattern from other methods)."""
         return {
-            "HP-001": {"name": "Heat Pump Unit 3-Ton", "total_required": 2, "jobs": ["job_001"]},
-            "FILTER-20x25": {"name": "Air Filter MERV 8", "total_required": 6, "jobs": ["job_002"]},
-            "CAP-45-5": {"name": "Dual Capacitor", "total_required": 3, "jobs": ["job_002"]},
+            "HP-001": {
+                "name": "Heat Pump Unit 3-Ton",
+                "total_required": 2,
+                "jobs": ["job_001"],
+            },
+            "FILTER-20x25": {
+                "name": "Air Filter MERV 8",
+                "total_required": 6,
+                "jobs": ["job_002"],
+            },
+            "CAP-45-5": {
+                "name": "Dual Capacitor",
+                "total_required": 3,
+                "jobs": ["job_002"],
+            },
         }
 
 
