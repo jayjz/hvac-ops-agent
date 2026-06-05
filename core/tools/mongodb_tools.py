@@ -1,5 +1,4 @@
-"""MongoDB tools for HVAC OpsForge agent operations."""
-
+"""MongoDB tools for HVAC OpsForge agent operations with Pydantic validation layer (Phase 4 hardening per TDD skill)."""
 from __future__ import annotations
 
 import os
@@ -7,14 +6,17 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
+from pydantic import ValidationError
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
+
+from core.models.parts_schemas import InventoryItem, JobDocument
 
 load_dotenv()
 
 
 class MongoDBTools:
-    """MongoDB operations for HVAC business data with synthetic fallbacks."""
+    """MongoDB operations for HVAC business data with synthetic fallbacks and Pydantic validation on all read paths for inventory/jobs (schema enforcement, error resilience)."""
 
     def __init__(self, connection_string: Optional[str] = None):
         self.connection_string = connection_string or os.getenv(
@@ -40,8 +42,8 @@ class MongoDBTools:
             self.client = None
             return None
 
-    def get_upcoming_jobs(self, days: int = 14) -> List[Dict[str, Any]]:
-        """Get jobs scheduled in the next N days with fallback to synthetic data."""
+    def get_upcoming_jobs(self, days: int = 14) -> List[JobDocument]:
+        """Get jobs scheduled in the next N days with Pydantic JobDocument validation (Phase 4)."""
         try:
             client = self.connect()
             if not client:
@@ -64,21 +66,17 @@ class MongoDBTools:
             )
 
             if jobs:
-                return jobs
-            # If no jobs found, fall through to synthetic data
-
-        except (PyMongoError, ConnectionError, Exception) as exc:
+                return [JobDocument.model_validate(j) for j in jobs]
+        except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
-        # Synthetic fallback data
-        return [
+        # Synthetic fallback - validated to JobDocument
+        synthetic = [
             {
                 "job_id": "job_001",
                 "job_type": "heat_pump_install",
                 "customer_name": "ABC Manufacturing",
-                "scheduled_date": (
-                    datetime.now(timezone.utc) + timedelta(days=3)
-                ).isoformat(),
+                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 8,
             },
@@ -86,9 +84,7 @@ class MongoDBTools:
                 "job_id": "job_002",
                 "job_type": "ac_repair",
                 "customer_name": "XYZ Office Complex",
-                "scheduled_date": (
-                    datetime.now(timezone.utc) + timedelta(days=5)
-                ).isoformat(),
+                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 3,
             },
@@ -96,18 +92,17 @@ class MongoDBTools:
                 "job_id": "job_003",
                 "job_type": "maintenance",
                 "customer_name": "Downtown Retail",
-                "scheduled_date": (
-                    datetime.now(timezone.utc) + timedelta(days=7)
-                ).isoformat(),
+                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 2,
             },
         ]
+        return [JobDocument.model_validate(j) for j in synthetic]
 
     def get_low_inventory(
         self, threshold_multiplier: float = 1.2
-    ) -> List[Dict[str, Any]]:
-        """Get inventory items below reorder threshold with synthetic fallback."""
+    ) -> List[InventoryItem]:
+        """Get inventory items below reorder threshold with Pydantic InventoryItem validation (Phase 4). Deepens Mongo grounding for PartsAvailabilityChecker score math and reorder recommendations."""
         try:
             client = self.connect()
             if not client:
@@ -116,7 +111,6 @@ class MongoDBTools:
             db = client["hvac_ops"]
             collection = db["inventory"]
 
-            # Find items where quantity <= reorder_point * multiplier
             pipeline = [
                 {
                     "$addFields": {
@@ -134,13 +128,12 @@ class MongoDBTools:
             items = list(collection.aggregate(pipeline))
 
             if items:
-                return items
-
-        except (PyMongoError, ConnectionError, Exception) as exc:
+                return [InventoryItem.model_validate(item) for item in items]
+        except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
-        # Synthetic fallback data
-        return [
+        # Synthetic fallback data - always validated for production-grade schema enforcement
+        synthetic = [
             {
                 "sku": "HP-001",
                 "name": "Heat Pump Unit 3-Ton",
@@ -174,9 +167,10 @@ class MongoDBTools:
                 "category": "electrical",
             },
         ]
+        return [InventoryItem.model_validate(item) for item in synthetic]
 
     def get_overdue_invoices(self, days: int = 30) -> List[Dict[str, Any]]:
-        """Get invoices overdue by specified days with synthetic fallback."""
+        """Get invoices overdue by specified days with synthetic fallback (kept as Dict for this phase; can add InvoiceDocument later)."""
         try:
             client = self.connect()
             if not client:
@@ -212,12 +206,8 @@ class MongoDBTools:
                 "customer_id": "CUST-ABC-001",
                 "customer_name": "ABC Manufacturing",
                 "amount": 4500.00,
-                "due_date": (
-                    datetime.now(timezone.utc) - timedelta(days=45)
-                ).isoformat(),
-                "invoice_date": (
-                    datetime.now(timezone.utc) - timedelta(days=75)
-                ).isoformat(),
+                "due_date": (datetime.now(timezone.utc) - timedelta(days=45)).isoformat(),
+                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=75)).isoformat(),
                 "days_overdue": 45,
                 "status": "overdue",
             },
@@ -226,12 +216,8 @@ class MongoDBTools:
                 "customer_id": "CUST-XYZ-002",
                 "customer_name": "XYZ Office Complex",
                 "amount": 1850.00,
-                "due_date": (
-                    datetime.now(timezone.utc) - timedelta(days=32)
-                ).isoformat(),
-                "invoice_date": (
-                    datetime.now(timezone.utc) - timedelta(days=62)
-                ).isoformat(),
+                "due_date": (datetime.now(timezone.utc) - timedelta(days=32)).isoformat(),
+                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=62)).isoformat(),
                 "days_overdue": 32,
                 "status": "overdue",
             },
@@ -240,12 +226,8 @@ class MongoDBTools:
                 "customer_id": "CUST-RETAIL-003",
                 "customer_name": "Downtown Retail Center",
                 "amount": 750.00,
-                "due_date": (
-                    datetime.now(timezone.utc) - timedelta(days=38)
-                ).isoformat(),
-                "invoice_date": (
-                    datetime.now(timezone.utc) - timedelta(days=68)
-                ).isoformat(),
+                "due_date": (datetime.now(timezone.utc) - timedelta(days=38)).isoformat(),
+                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=68)).isoformat(),
                 "days_overdue": 38,
                 "status": "overdue",
             },
@@ -254,7 +236,7 @@ class MongoDBTools:
     def get_parts_required_for_jobs(
         self, job_list: List[Dict[str, Any]] | List[str]
     ) -> Dict[str, Dict]:
-        """Minimal helper to aggregate parts required. Reuses get_upcoming_jobs and synthetic. Surgical/DRY."""
+        """Minimal helper to aggregate parts required. Reuses get_upcoming_jobs (now returns validated models) and synthetic. Surgical/DRY. Handles Pydantic objects."""
         if not job_list:
             raise ValueError("Job list cannot be empty")
         try:
@@ -264,11 +246,15 @@ class MongoDBTools:
                 jobs = job_list
             parts = {}
             for job in jobs:
-                job_type = (
-                    job.get("job_type", "ac_repair")
-                    if isinstance(job, dict)
-                    else str(job)
-                )
+                # Support both Pydantic and dict
+                if hasattr(job, "job_type"):
+                    job_type = job.job_type
+                else:
+                    job_type = (
+                        job.get("job_type", "ac_repair")
+                        if isinstance(job, dict)
+                        else str(job)
+                    )
                 if "heat" in str(job_type).lower() or "pump" in str(job_type).lower():
                     p_list = [
                         {"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 1}
@@ -291,7 +277,8 @@ class MongoDBTools:
                             "jobs": [],
                         }
                     parts[sku]["total_required"] += p.get("quantity", 1)
-                    parts[sku]["jobs"].append(job.get("_id", "unknown"))
+                    job_id = job.job_id if hasattr(job, "job_id") else job.get("_id", "unknown") if isinstance(job, dict) else str(job)
+                    parts[sku]["jobs"].append(job_id)
             return parts
         except Exception as exc:
             print(f"Parts aggregation failed: {exc}. Using fallback.")

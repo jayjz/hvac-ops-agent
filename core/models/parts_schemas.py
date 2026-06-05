@@ -67,6 +67,28 @@ class PartCheckResult(PartsAvailabilityResult):
     pass
 
 
+class InventoryItem(BaseModel):
+    """Pydantic model for validated inventory records from MongoDB (Phase 4 hardening)."""
+    sku: str = Field(..., min_length=3)
+    name: str
+    quantity: int = Field(..., ge=0)
+    reorder_point: int = Field(..., ge=0)
+    unit_cost: float = Field(..., ge=0)
+    category: Optional[str] = Field("general", description="equipment/consumable/refrigerant")
+
+
+class JobDocument(BaseModel):
+    """Pydantic model for validated job records from MongoDB."""
+    job_id: str
+    job_type: str
+    customer_name: str
+    scheduled_date: datetime
+    status: str = Field(..., pattern=r"^(scheduled|confirmed|in_progress|completed)$")
+    estimated_hours: Optional[int] = Field(None, ge=0)
+    customer_id: Optional[str] = None
+    urgency: Optional[str] = "medium"
+
+
 class AgentResult(BaseModel):
     """Simple result wrapper for compatibility."""
     success: bool = True
@@ -75,11 +97,13 @@ class AgentResult(BaseModel):
 
 
 __all__ = [
-    "JobPartsRequest",
+        "JobPartsRequest",
     "PartsAvailabilityResult",
     "ReorderRecommendation",
     "RequiredPart",
     "PartsAvailabilityRequest",
     "PartCheckResult",
     "AgentResult",
+    "InventoryItem",
+    "JobDocument",
 ]

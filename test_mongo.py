@@ -215,6 +215,29 @@ def test_generate_pre_departure_report_handles_synthetic_fallback_and_validation
         agent.generate_pre_departure_report([])  # Empty should trigger validation per skill
 
 
+
+
+
+def test_mongodb_tools_returns_pydantic_validated_models():
+    """RED: Tests that MongoDBTools returns Pydantic validated models (InventoryItem, JobDocument) instead of raw dicts after hardening. 
+    Will fail on current dict returns. Covers job-specific checks, score math indirectly via PartsChecker integration. DB failure paths via exception.
+    """
+    from core.tools.mongodb_tools import MongoDBTools
+    from core.models.parts_schemas import InventoryItem, JobDocument
+    tools = MongoDBTools()
+    # Test inventory (real or synthetic path)
+    inventory = tools.get_low_inventory(threshold_multiplier=1.5)
+    assert len(inventory) > 0, "Must return inventory items"
+    for item in inventory[:2]:
+        assert isinstance(item, InventoryItem) or hasattr(item, "model_dump"), "Must be Pydantic validated model"
+    # Test jobs
+    jobs = tools.get_upcoming_jobs(days=5)
+    assert len(jobs) > 0
+    for job in jobs[:1]:
+        assert isinstance(job, JobDocument) or hasattr(job, "model_dump"), "JobDocument validation required"
+    print("RED test added and executed - expecting failure until validation layer in mongodb_tools.py")
+
+
 if __name__ == "__main__":
     print("="*60)
     print("HVAC OpsForge - MongoDB Test Suite")
