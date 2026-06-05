@@ -20,13 +20,15 @@ def register_specialist(name: str):
     """Decorator for dynamic registration. Orchestrator can lookup by name.
     Supports auto-discovery and demo-ready extensibility.
     """
+
     def decorator(cls: Type[BaseAgent]) -> Type[BaseAgent]:
         if issubclass(cls, BaseAgent):
             SPECIALISTS[name] = cls
             # Ensure name consistency for demo
-            if not hasattr(cls, 'name') or not cls.name:
+            if not hasattr(cls, "name") or not cls.name:
                 cls.name = name
         return cls
+
     return decorator
 
 
@@ -37,21 +39,35 @@ class InventoryForecasterAgent(BaseAgent):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="inventory_forecaster", **kwargs)
 
-    async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
+    async def execute(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> AgentResult:
         mongodb = payload.get("mongodb")
-        await self.report_progress(context, 0.20, "Fetching upcoming jobs from MongoDB.")
-        
+        await self.report_progress(
+            context, 0.20, "Fetching upcoming jobs from MongoDB."
+        )
+
         # Get upcoming jobs and current inventory from MongoDB
         upcoming_jobs = []
         inventory_levels = []
-        
+
         if mongodb:
             try:
-                upcoming_jobs = await asyncio.to_thread(mongodb.get_upcoming_jobs, days=14)
-                inventory_levels = await asyncio.to_thread(mongodb.get_low_inventory, threshold_multiplier=1.2)
-                await self.report_progress(context, 0.50, f"Found {len(upcoming_jobs)} upcoming jobs and {len(inventory_levels)} low-stock items.")
+                upcoming_jobs = await asyncio.to_thread(
+                    mongodb.get_upcoming_jobs, days=14
+                )
+                inventory_levels = await asyncio.to_thread(
+                    mongodb.get_low_inventory, threshold_multiplier=1.2
+                )
+                await self.report_progress(
+                    context,
+                    0.50,
+                    f"Found {len(upcoming_jobs)} upcoming jobs and {len(inventory_levels)} low-stock items.",
+                )
             except Exception as exc:
-                self.logger.warning("MongoDB query failed, using fallback data: %s", exc)
+                self.logger.warning(
+                    "MongoDB query failed, using fallback data: %s", exc
+                )
                 # Fallback to synthetic data for demo
                 upcoming_jobs = self._get_synthetic_jobs()
                 inventory_levels = self._get_synthetic_inventory()
@@ -59,40 +75,39 @@ class InventoryForecasterAgent(BaseAgent):
             # No MongoDB, use synthetic data
             upcoming_jobs = self._get_synthetic_jobs()
             inventory_levels = self._get_synthetic_inventory()
-        
-        await self.report_progress(context, 0.70, "Forecasting parts needs and reorder points.")
-        
+
+        await self.report_progress(
+            context, 0.70, "Forecasting parts needs and reorder points."
+        )
+
         # Analyze jobs and forecast inventory needs
         forecast = await asyncio.to_thread(
-            self._forecast_inventory_needs, 
-            upcoming_jobs, 
-            inventory_levels,
-            mongodb
+            self._forecast_inventory_needs, upcoming_jobs, inventory_levels, mongodb
         )
-        
+
         self.remember("inventory_forecast", forecast)
         await self.report_progress(context, 0.90, "Inventory forecast ready.")
-        
+
         return AgentResult(
-            agent=self.name, 
-            success=True, 
+            agent=self.name,
+            success=True,
             data={
                 "requirements_register": forecast.get("requirements", []),
                 "inventory_forecast": forecast,
                 "recommended_orders": forecast.get("recommended_orders", []),
                 "upcoming_jobs_count": len(upcoming_jobs),
                 "low_stock_items": len(inventory_levels),
-            }
+            },
         )
 
     def _forecast_inventory_needs(
-        self, 
-        upcoming_jobs: List[Dict[str, Any]], 
+        self,
+        upcoming_jobs: List[Dict[str, Any]],
         inventory_levels: List[Dict[str, Any]],
-        mongodb=None
+        mongodb=None,
     ) -> Dict[str, Any]:
         """Analyze upcoming jobs and current inventory to forecast needs."""
-        
+
         # Aggregate parts needed for upcoming jobs
         parts_needed = {}
         for job in upcoming_jobs:
@@ -105,7 +120,7 @@ class InventoryForecasterAgent(BaseAgent):
                     job_parts = self._get_default_parts_for_job(job_type)
             else:
                 job_parts = self._get_default_parts_for_job(job_type)
-            
+
             for part in job_parts:
                 sku = part.get("sku")
                 qty_needed = part.get("quantity", 1)
@@ -120,48 +135,55 @@ class InventoryForecasterAgent(BaseAgent):
                         "current_stock": 0,
                         "jobs": [job.get("_id")],
                     }
-        
+
         # Check current inventory levels
         inventory_dict = {item["sku"]: item for item in inventory_levels}
         recommended_orders = []
-        
+
         for sku, need in parts_needed.items():
             current = inventory_dict.get(sku, {"quantity": 0, "reorder_point": 10})
             current_stock = current.get("quantity", 0)
             need["current_stock"] = current_stock
-            
+
             # Calculate if we need to order
             projected_stock = current_stock - need["total_needed"]
             reorder_point = current.get("reorder_point", 10)
-            
+
             if projected_stock < reorder_point:
-                order_qty = max(
-                    need["total_needed"] * 2,  # Order 2x what we need
-                    reorder_point * 3  # Or 3x reorder point
-                ) - current_stock
-                
-                recommended_orders.append({
-                    "sku": sku,
-                    "part_name": need["part_name"],
-                    "current_stock": current_stock,
-                    "projected_need": need["total_needed"],
-                    "quantity": int(order_qty),
-                    "urgency": "high" if projected_stock < 0 else "medium",
-                    "jobs_affected": len(need["jobs"]),
-                })
-        
+                order_qty = (
+                    max(
+                        need["total_needed"] * 2,  # Order 2x what we need
+                        reorder_point * 3,  # Or 3x reorder point
+                    )
+                    - current_stock
+                )
+
+                recommended_orders.append(
+                    {
+                        "sku": sku,
+                        "part_name": need["part_name"],
+                        "current_stock": current_stock,
+                        "projected_need": need["total_needed"],
+                        "quantity": int(order_qty),
+                        "urgency": "high" if projected_stock < 0 else "medium",
+                        "jobs_affected": len(need["jobs"]),
+                    }
+                )
+
         return {
             "requirements": list(parts_needed.values()),
             "recommended_orders": sorted(
-                recommended_orders, 
-                key=lambda x: (x["urgency"] == "high", x["jobs_affected"]), 
-                reverse=True
+                recommended_orders,
+                key=lambda x: (x["urgency"] == "high", x["jobs_affected"]),
+                reverse=True,
             ),
             "analysis_summary": {
                 "total_parts_needed": len(parts_needed),
                 "orders_recommended": len(recommended_orders),
-                "high_urgency_orders": len([o for o in recommended_orders if o["urgency"] == "high"]),
-            }
+                "high_urgency_orders": len(
+                    [o for o in recommended_orders if o["urgency"] == "high"]
+                ),
+            },
         }
 
     def _get_synthetic_jobs(self) -> List[Dict[str, Any]]:
@@ -175,7 +197,7 @@ class InventoryForecasterAgent(BaseAgent):
                 "status": "scheduled",
             },
             {
-                "_id": "job_002", 
+                "_id": "job_002",
                 "job_type": "ac_repair",
                 "scheduled_date": "2026-06-12",
                 "customer": "XYZ Inc",
@@ -186,9 +208,24 @@ class InventoryForecasterAgent(BaseAgent):
     def _get_synthetic_inventory(self) -> List[Dict[str, Any]]:
         """Fallback synthetic inventory data."""
         return [
-            {"sku": "HP-001", "name": "Heat Pump Unit", "quantity": 2, "reorder_point": 3},
-            {"sku": "FILTER-01", "name": "Air Filter", "quantity": 15, "reorder_point": 20},
-            {"sku": "REFRIG-R410A", "name": "R410A Refrigerant", "quantity": 5, "reorder_point": 10},
+            {
+                "sku": "HP-001",
+                "name": "Heat Pump Unit",
+                "quantity": 2,
+                "reorder_point": 3,
+            },
+            {
+                "sku": "FILTER-01",
+                "name": "Air Filter",
+                "quantity": 15,
+                "reorder_point": 20,
+            },
+            {
+                "sku": "REFRIG-R410A",
+                "name": "R410A Refrigerant",
+                "quantity": 5,
+                "reorder_point": 10,
+            },
         ]
 
     def _get_default_parts_for_job(self, job_type: str) -> List[Dict[str, Any]]:
@@ -206,15 +243,21 @@ class InventoryForecasterAgent(BaseAgent):
             ],
         }
         return parts_map.get(job_type, [])
-    def generate_pre_departure_report(self, jobs_or_parts: list, output_path: str = None) -> str:
+
+    def generate_pre_departure_report(
+        self, jobs_or_parts: list, output_path: str = None
+    ) -> str:
         """Generates pre-departure report. Reuses _forecast_inventory_needs, synthetic methods, logger. Exact skill style for demos. Surgical, DRY, production-grade."""
         if not jobs_or_parts:
             raise ValueError("Job list cannot be empty")
         try:
             from core.tools.mongodb_tools import mongodb_tools
+
             jobs = jobs_or_parts or self._get_synthetic_jobs()
             inventory = mongodb_tools.get_low_inventory()
-            _ = self._forecast_inventory_needs(jobs, inventory)  # heavy reuse of core forecast logic (DRY)
+            _ = self._forecast_inventory_needs(
+                jobs, inventory
+            )  # heavy reuse of core forecast logic (DRY)
             report = """# Pre-Departure Parts Availability Report — 2026-06-04
 
 **Summary:** 3 Jobs | 12 Parts Checked | **2 Critical** | 1 Reorder Recommended | **Overall Risk: HIGH**
@@ -277,28 +320,58 @@ class RiskAssessorAgent(BaseAgent):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="risk_assessor", **kwargs)
 
-    async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
-        await self.report_progress(context, 0.20, "Analyzing inventory, AR, and scheduling data.")
+    async def execute(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> AgentResult:
+        await self.report_progress(
+            context, 0.20, "Analyzing inventory, AR, and scheduling data."
+        )
         risk_register = await asyncio.to_thread(self._forecast, payload)
-        await self.report_progress(context, 0.70, "Identifying operational risks and opportunities.")
+        await self.report_progress(
+            context, 0.70, "Identifying operational risks and opportunities."
+        )
         self.remember("risk_register", risk_register)
         await self.report_progress(context, 0.90, "Risk assessment complete.")
-        return AgentResult(agent=self.name, success=True, data={"risk_register": risk_register})
+        return AgentResult(
+            agent=self.name, success=True, data={"risk_register": risk_register}
+        )
 
     def _forecast(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
         import pandas as pd
 
         requirements = payload.get("requirements_register", [])
         project_data = payload.get("project_data", {})
-        budget = project_data.get("budget", {"labor": 75000, "materials": 150000, "contingency": 20000})
+        budget = project_data.get(
+            "budget", {"labor": 75000, "materials": 150000, "contingency": 20000}
+        )
         budget_total = sum(float(value) for value in budget.values())
 
         base = pd.DataFrame(
             [
-                {"risk": "Long-lead equipment delay", "probability": 0.42, "impact": 0.75, "category": "Procurement"},
-                {"risk": "Controls integration defect", "probability": 0.35, "impact": 0.70, "category": "Automation"},
-                {"risk": "Field labor constraint", "probability": 0.30, "impact": 0.55, "category": "Construction"},
-                {"risk": "Scope gap or late owner decision", "probability": 0.28, "impact": 0.62, "category": "Stakeholder"},
+                {
+                    "risk": "Long-lead equipment delay",
+                    "probability": 0.42,
+                    "impact": 0.75,
+                    "category": "Procurement",
+                },
+                {
+                    "risk": "Controls integration defect",
+                    "probability": 0.35,
+                    "impact": 0.70,
+                    "category": "Automation",
+                },
+                {
+                    "risk": "Field labor constraint",
+                    "probability": 0.30,
+                    "impact": 0.55,
+                    "category": "Construction",
+                },
+                {
+                    "risk": "Scope gap or late owner decision",
+                    "probability": 0.28,
+                    "impact": 0.62,
+                    "category": "Stakeholder",
+                },
                 {
                     "risk": "Budget contingency burn",
                     "probability": min(0.65, 20000 / max(budget_total, 1)),
@@ -308,9 +381,13 @@ class RiskAssessorAgent(BaseAgent):
             ]
         )
         requirement_factor = min(0.15, len(requirements) * 0.015)
-        base["score"] = ((base["probability"] + requirement_factor) * base["impact"]).clip(upper=1.0)
+        base["score"] = (
+            (base["probability"] + requirement_factor) * base["impact"]
+        ).clip(upper=1.0)
         base["severity"] = base["score"].apply(
-            lambda score: "High" if score >= 0.35 else "Medium" if score >= 0.18 else "Low"
+            lambda score: (
+                "High" if score >= 0.35 else "Medium" if score >= 0.18 else "Low"
+            )
         )
         base["mitigation"] = base["category"].map(
             {
@@ -331,21 +408,41 @@ class SchedulerOptimizerAgent(BaseAgent):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="scheduler", **kwargs)
 
-    async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
-        await self.report_progress(context, 0.20, "Loading technician schedules and job requirements.")
+    async def execute(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> AgentResult:
+        await self.report_progress(
+            context, 0.20, "Loading technician schedules and job requirements."
+        )
         schedule = await asyncio.to_thread(self._optimize, payload)
-        await self.report_progress(context, 0.70, "Optimizing routes and technician assignments.")
+        await self.report_progress(
+            context, 0.70, "Optimizing routes and technician assignments."
+        )
         self.remember("optimized_schedule", schedule)
         await self.report_progress(context, 0.90, "Optimized schedule ready.")
-        return AgentResult(agent=self.name, success=True, data={"optimized_schedule": schedule})
+        return AgentResult(
+            agent=self.name, success=True, data={"optimized_schedule": schedule}
+        )
 
     def _optimize(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         project_data = payload.get("project_data", {})
         tasks = project_data.get("schedule") or [
             {"task": "Requirements validation", "duration_days": 5, "predecessors": []},
-            {"task": "Procurement", "duration_days": 20, "predecessors": ["Requirements validation"]},
-            {"task": "Installation", "duration_days": 15, "predecessors": ["Procurement"]},
-            {"task": "Commissioning", "duration_days": 7, "predecessors": ["Installation"]},
+            {
+                "task": "Procurement",
+                "duration_days": 20,
+                "predecessors": ["Requirements validation"],
+            },
+            {
+                "task": "Installation",
+                "duration_days": 15,
+                "predecessors": ["Procurement"],
+            },
+            {
+                "task": "Commissioning",
+                "duration_days": 7,
+                "predecessors": ["Installation"],
+            },
         ]
         try:
             return self._optimize_with_pulp(tasks)
@@ -357,7 +454,9 @@ class SchedulerOptimizerAgent(BaseAgent):
         import pulp
 
         names = [str(task["task"]) for task in tasks]
-        durations = {str(task["task"]): int(task.get("duration_days", 1)) for task in tasks}
+        durations = {
+            str(task["task"]): int(task.get("duration_days", 1)) for task in tasks
+        }
         starts = pulp.LpVariable.dicts("start", names, lowBound=0, cat="Continuous")
         makespan = pulp.LpVariable("makespan", lowBound=0, cat="Continuous")
         problem = pulp.LpProblem("pm_schedule", pulp.LpMinimize)
@@ -367,7 +466,9 @@ class SchedulerOptimizerAgent(BaseAgent):
             problem += starts[name] + durations[name] <= makespan
             for predecessor in task.get("predecessors", []):
                 if predecessor in starts:
-                    problem += starts[name] >= starts[predecessor] + durations[predecessor]
+                    problem += (
+                        starts[name] >= starts[predecessor] + durations[predecessor]
+                    )
         problem.solve(pulp.PULP_CBC_CMD(msg=False))
         rows = [
             {
@@ -424,11 +525,15 @@ class SchedulerOptimizerAgent(BaseAgent):
             if name in memo:
                 return memo[name]
             task = by_name[name]
-            predecessors = [pred for pred in task.get("predecessors", []) if pred in by_name]
+            predecessors = [
+                pred for pred in task.get("predecessors", []) if pred in by_name
+            ]
             if not predecessors:
                 result = (int(task.get("duration_days", 1)), [name])
             else:
-                best = max((score(pred) for pred in predecessors), key=lambda item: item[0])
+                best = max(
+                    (score(pred) for pred in predecessors), key=lambda item: item[0]
+                )
                 result = (best[0] + int(task.get("duration_days", 1)), best[1] + [name])
             memo[name] = result
             return result
@@ -445,54 +550,66 @@ class ARCollectorAgent(BaseAgent):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="ar_collector", **kwargs)
 
-    async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
+    async def execute(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> AgentResult:
         mongodb = payload.get("mongodb")
-        await self.report_progress(context, 0.20, "Fetching overdue invoices from MongoDB.")
-        
+        await self.report_progress(
+            context, 0.20, "Fetching overdue invoices from MongoDB."
+        )
+
         overdue_invoices = []
         if mongodb:
             try:
-                overdue_invoices = await asyncio.to_thread(mongodb.get_overdue_invoices, days=30)
-                await self.report_progress(context, 0.50, f"Found {len(overdue_invoices)} overdue invoices.")
+                overdue_invoices = await asyncio.to_thread(
+                    mongodb.get_overdue_invoices, days=30
+                )
+                await self.report_progress(
+                    context, 0.50, f"Found {len(overdue_invoices)} overdue invoices."
+                )
             except Exception as exc:
-                self.logger.warning("MongoDB query failed, using synthetic data: %s", exc)
+                self.logger.warning(
+                    "MongoDB query failed, using synthetic data: %s", exc
+                )
                 overdue_invoices = self._get_synthetic_invoices()
         else:
             overdue_invoices = self._get_synthetic_invoices()
-        
+
         await self.report_progress(context, 0.70, "Drafting reminder communications.")
-        
+
         # Generate AR report with MongoDB data
         report = await asyncio.to_thread(
-            self._generate_ar_report, 
-            payload, 
-            overdue_invoices
+            self._generate_ar_report, payload, overdue_invoices
         )
-        
+
         self.remember("ar_report", report)
         await self.report_progress(context, 0.90, "AR collection actions ready.")
-        
+
         return AgentResult(
-            agent=self.name, 
-            success=True, 
+            agent=self.name,
+            success=True,
             data={
                 "pm_report": report,
                 "overdue_invoices": overdue_invoices,
-                "total_overdue_amount": sum(inv.get("amount", 0) for inv in overdue_invoices),
+                "total_overdue_amount": sum(
+                    inv.get("amount", 0) for inv in overdue_invoices
+                ),
                 "invoices_count": len(overdue_invoices),
-            }
+            },
         )
 
-    def _generate_ar_report(self, payload: Dict[str, Any], overdue_invoices: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _generate_ar_report(
+        self, payload: Dict[str, Any], overdue_invoices: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Generate AR collection report with overdue invoice data."""
         risks = payload.get("risk_register", [])
         requirements = payload.get("requirements_register", [])
         schedule = payload.get("optimized_schedule", {})
         chart_path = self._risk_chart(risks)
         high_risks = [risk for risk in risks if risk.get("severity") == "High"]
-        
+
         total_overdue = sum(inv.get("amount", 0) for inv in overdue_invoices)
-        
+
         return {
             "summary": f"HVAC operations analysis complete. Found {len(overdue_invoices)} overdue invoices totaling ${total_overdue:,.2f}.",
             "requirements_count": len(requirements),
@@ -503,8 +620,14 @@ class ARCollectorAgent(BaseAgent):
                 "overdue_count": len(overdue_invoices),
                 "total_amount": total_overdue,
                 "oldest_invoice_days": max(
-                    [(datetime.now(timezone.utc) - inv.get("due_date", datetime.utcnow())).days 
-                     for inv in overdue_invoices] or [0]
+                    [
+                        (
+                            datetime.now(timezone.utc)
+                            - inv.get("due_date", datetime.utcnow())
+                        ).days
+                        for inv in overdue_invoices
+                    ]
+                    or [0]
                 ),
             },
             "recommended_actions": [
@@ -518,6 +641,7 @@ class ARCollectorAgent(BaseAgent):
     def _get_synthetic_invoices(self) -> List[Dict[str, Any]]:
         """Fallback synthetic invoice data for demo."""
         from datetime import datetime, timezone, timedelta
+
         return [
             {
                 "_id": "inv_001",
@@ -574,7 +698,9 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
         kwargs.setdefault("name", "parts_availability_checker")
         super().__init__(**kwargs)
 
-    async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
+    async def execute(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> AgentResult:
         """Execute parts availability check. Minimal implementation for Green phase."""
 
         await self.report_progress(context, 0.2, "Starting parts availability check.")
@@ -612,9 +738,21 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
 
         for req in required_parts:
             # Support both Pydantic model and dict (for test compatibility)
-            sku = getattr(req, "sku", req.get("sku", "")) if isinstance(req, dict) else getattr(req, "sku", "")
-            name = getattr(req, "name", req.get("name", "Unknown")) if isinstance(req, dict) else getattr(req, "name", "Unknown")
-            required_qty = getattr(req, "quantity", req.get("quantity", 1)) if isinstance(req, dict) else getattr(req, "quantity", 1)
+            sku = (
+                getattr(req, "sku", req.get("sku", ""))
+                if isinstance(req, dict)
+                else getattr(req, "sku", "")
+            )
+            name = (
+                getattr(req, "name", req.get("name", "Unknown"))
+                if isinstance(req, dict)
+                else getattr(req, "name", "Unknown")
+            )
+            required_qty = (
+                getattr(req, "quantity", req.get("quantity", 1))
+                if isinstance(req, dict)
+                else getattr(req, "quantity", 1)
+            )
 
             # Determine current stock from mock data
             current_stock = 25  # baseline for full stock test
@@ -628,7 +766,9 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
 
             urgency = "low"
             if shortfall > 0:
-                if shortfall > 10 or (required_qty > 0 and shortfall / required_qty > 0.5):
+                if shortfall > 10 or (
+                    required_qty > 0 and shortfall / required_qty > 0.5
+                ):
                     urgency = "high"
                 elif shortfall > 5:
                     urgency = "medium"
@@ -646,19 +786,29 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
             checked_parts.append(part_result)
 
             if not is_available and shortfall > 0:
-                reorder_recommendations.append({
-                    "sku": sku,
-                    "name": name,
-                    "recommended_quantity": part_result["reorder_quantity"],
-                    "urgency": urgency,
-                    "shortfall": shortfall,
-                })
+                reorder_recommendations.append(
+                    {
+                        "sku": sku,
+                        "name": name,
+                        "recommended_quantity": part_result["reorder_quantity"],
+                        "urgency": urgency,
+                        "shortfall": shortfall,
+                    }
+                )
 
-            part_score = 1.0 if is_available else max(0.0, 1.0 - (shortfall / required_qty if required_qty > 0 else 0))
+            part_score = (
+                1.0
+                if is_available
+                else max(
+                    0.0, 1.0 - (shortfall / required_qty if required_qty > 0 else 0)
+                )
+            )
             total_score += part_score
 
         all_parts_available = len(reorder_recommendations) == 0
-        availability_score = round(total_score / len(required_parts), 2) if required_parts else 1.0
+        availability_score = (
+            round(total_score / len(required_parts), 2) if required_parts else 1.0
+        )
 
         summary = (
             "All parts in stock. Ready for job execution."
@@ -683,4 +833,3 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
             success=True,
             data=result_data,
         )
-

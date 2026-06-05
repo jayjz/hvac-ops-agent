@@ -61,14 +61,18 @@ class BaseAgent(ABC):
             with self.config_path.open("r", encoding="utf-8") as handle:
                 loaded = yaml.safe_load(handle) or {}
             if not isinstance(loaded, dict):
-                self.logger.warning("Config root is not a mapping: %s", self.config_path)
+                self.logger.warning(
+                    "Config root is not a mapping: %s", self.config_path
+                )
                 return {}
             return loaded
         except Exception as exc:
             self.logger.exception("Failed to load config from %s", self.config_path)
             return {"_config_error": str(exc)}
 
-    async def report_progress(self, context: AgentContext, progress: float, detail: str) -> None:
+    async def report_progress(
+        self, context: AgentContext, progress: float, detail: str
+    ) -> None:
         """Send a progress update through the configured callback."""
 
         if not context.job_id or self.progress_callback is None:
@@ -81,7 +85,9 @@ class BaseAgent(ABC):
         except Exception:
             self.logger.exception("Progress callback failed for job %s", context.job_id)
 
-    async def run(self, context: AgentContext, payload: Optional[Dict[str, Any]] = None) -> AgentResult:
+    async def run(
+        self, context: AgentContext, payload: Optional[Dict[str, Any]] = None
+    ) -> AgentResult:
         """Execute the agent with consistent logging and error handling."""
 
         payload = payload or {}
@@ -99,7 +105,9 @@ class BaseAgent(ABC):
             return AgentResult(agent=self.name, success=False, errors=[str(exc)])
 
     @abstractmethod
-    async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
+    async def execute(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> AgentResult:
         """Implement domain-specific agent behavior."""
 
     def remember(self, key: str, value: Any) -> None:

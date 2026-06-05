@@ -17,7 +17,13 @@ from core.orchestrator import run_pm_job
 
 def test_registry_populated_with_specialists():
     """GREEN: All specialists auto-registered via decorators."""
-    expected = {"inventory_forecaster", "risk_assessor", "scheduler_optimizer", "ar_collector", "parts_availability_checker"}
+    expected = {
+        "inventory_forecaster",
+        "risk_assessor",
+        "scheduler_optimizer",
+        "ar_collector",
+        "parts_availability_checker",
+    }
     assert expected.issubset(SPECIALISTS.keys())
     assert len(SPECIALISTS) >= 5
     for name, cls in SPECIALISTS.items():
@@ -27,10 +33,13 @@ def test_registry_populated_with_specialists():
 
 def test_register_decorator_works():
     """GREEN: Decorator registers new classes cleanly (YAGNI minimal impl)."""
+
     @register_specialist("test_demo_agent")
     class TestDemoAgent(BaseAgent):
         """Demo agent for registry test."""
+
         pass
+
     assert "test_demo_agent" in SPECIALISTS
     assert SPECIALISTS["test_demo_agent"] is TestDemoAgent
     SPECIALISTS.pop("test_demo_agent", None)  # Cleanup
@@ -42,12 +51,15 @@ def test_orchestrator_supports_dynamic_dispatch():
     Registry presence enables demo scalability and removes hardcoded debt.
     """
     from core.agents.specialists import SPECIALISTS
+
     assert len(SPECIALISTS) > 4, "Registry must be populated for dynamic dispatch"
-    
+
     # Light test for dynamic lookup (no full job to avoid heavy PuLP/Mongo in unit test)
-    context = AgentContext(job_id="demo-dynamic", goals=["flagship HVAC demo with dynamic agents"])
+    context = AgentContext(
+        job_id="demo-dynamic", goals=["flagship HVAC demo with dynamic agents"]
+    )
     assert context.job_id == "demo-dynamic"
-    
+
     # Example dynamic instantiation (polish for demo)
     if "parts_availability_checker" in SPECIALISTS:
         agent_cls = SPECIALISTS["parts_availability_checker"]
