@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -48,7 +48,7 @@ class MongoDBTools:
             
             db = client["hvac_ops"]
             collection = db["jobs"]
-            cutoff = datetime.utcnow() + timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) + timedelta(days=days)
             
             jobs = list(
                 collection.find(
@@ -73,7 +73,7 @@ class MongoDBTools:
                 "job_id": "job_001",
                 "job_type": "heat_pump_install",
                 "customer_name": "ABC Manufacturing",
-                "scheduled_date": (datetime.utcnow() + timedelta(days=3)).isoformat(),
+                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 8,
             },
@@ -81,7 +81,7 @@ class MongoDBTools:
                 "job_id": "job_002",
                 "job_type": "ac_repair",
                 "customer_name": "XYZ Office Complex",
-                "scheduled_date": (datetime.utcnow() + timedelta(days=5)).isoformat(),
+                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 3,
             },
@@ -89,7 +89,7 @@ class MongoDBTools:
                 "job_id": "job_003",
                 "job_type": "maintenance",
                 "customer_name": "Downtown Retail",
-                "scheduled_date": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 2,
             },
@@ -175,7 +175,7 @@ class MongoDBTools:
             
             db = client["hvac_ops"]
             collection = db["invoices"]
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             
             invoices = list(
                 collection.find(
@@ -204,8 +204,8 @@ class MongoDBTools:
                 "customer_id": "CUST-ABC-001",
                 "customer_name": "ABC Manufacturing",
                 "amount": 4500.00,
-                "due_date": (datetime.utcnow() - timedelta(days=45)).isoformat(),
-                "invoice_date": (datetime.utcnow() - timedelta(days=75)).isoformat(),
+                "due_date": (datetime.now(timezone.utc) - timedelta(days=45)).isoformat(),
+                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=75)).isoformat(),
                 "days_overdue": 45,
                 "status": "overdue",
             },
@@ -214,8 +214,8 @@ class MongoDBTools:
                 "customer_id": "CUST-XYZ-002",
                 "customer_name": "XYZ Office Complex",
                 "amount": 1850.00,
-                "due_date": (datetime.utcnow() - timedelta(days=32)).isoformat(),
-                "invoice_date": (datetime.utcnow() - timedelta(days=62)).isoformat(),
+                "due_date": (datetime.now(timezone.utc) - timedelta(days=32)).isoformat(),
+                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=62)).isoformat(),
                 "days_overdue": 32,
                 "status": "overdue",
             },
@@ -224,8 +224,8 @@ class MongoDBTools:
                 "customer_id": "CUST-RETAIL-003",
                 "customer_name": "Downtown Retail Center",
                 "amount": 750.00,
-                "due_date": (datetime.utcnow() - timedelta(days=38)).isoformat(),
-                "invoice_date": (datetime.utcnow() - timedelta(days=68)).isoformat(),
+                "due_date": (datetime.now(timezone.utc) - timedelta(days=38)).isoformat(),
+                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=68)).isoformat(),
                 "days_overdue": 38,
                 "status": "overdue",
             },

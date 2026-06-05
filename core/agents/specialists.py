@@ -6,11 +6,31 @@ import asyncio
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Type
 
 from core.agents.base import AgentContext, AgentResult, BaseAgent
 
 
+# === DYNAMIC SPECIALIST REGISTRY (from proposal, TDD Green) ===
+# Enables clean, scalable dispatch for HVAC demo without hardcoded orchestrator sequence.
+SPECIALISTS: Dict[str, Type[BaseAgent]] = {}
+
+
+def register_specialist(name: str):
+    """Decorator for dynamic registration. Orchestrator can lookup by name.
+    Supports auto-discovery and demo-ready extensibility.
+    """
+    def decorator(cls: Type[BaseAgent]) -> Type[BaseAgent]:
+        if issubclass(cls, BaseAgent):
+            SPECIALISTS[name] = cls
+            # Ensure name consistency for demo
+            if not hasattr(cls, 'name') or not cls.name:
+                cls.name = name
+        return cls
+    return decorator
+
+
+@register_specialist("inventory_forecaster")
 class InventoryForecasterAgent(BaseAgent):
     """Forecast inventory needs based on upcoming jobs and historical usage."""
 
@@ -81,7 +101,7 @@ class InventoryForecasterAgent(BaseAgent):
             if mongodb:
                 try:
                     job_parts = mongodb.get_parts_for_job_type(job_type)
-                except:
+                except Exception:
                     job_parts = self._get_default_parts_for_job(job_type)
             else:
                 job_parts = self._get_default_parts_for_job(job_type)
@@ -185,6 +205,7 @@ class InventoryForecasterAgent(BaseAgent):
                 {"sku": "CAPACITOR-45", "name": "Capacitor 45uF", "quantity": 1},
             ],
         }
+        return parts_map.get(job_type, [])
     def generate_pre_departure_report(self, jobs_or_parts: list, output_path: str = None) -> str:
         """Generates pre-departure report. Reuses _forecast_inventory_needs, synthetic methods, logger. Exact skill style for demos. Surgical, DRY, production-grade."""
         if not jobs_or_parts:
@@ -249,6 +270,7 @@ class InventoryForecasterAgent(BaseAgent):
             return report
 
 
+@register_specialist("risk_assessor")
 class RiskAssessorAgent(BaseAgent):
     """Assess operational risks: low stock, delayed payments, scheduling conflicts."""
 
@@ -302,6 +324,7 @@ class RiskAssessorAgent(BaseAgent):
         return base.sort_values("score", ascending=False).to_dict(orient="records")
 
 
+@register_specialist("scheduler_optimizer")
 class SchedulerOptimizerAgent(BaseAgent):
     """Optimize technician job scheduling considering skills, location, and urgency."""
 
@@ -415,6 +438,7 @@ class SchedulerOptimizerAgent(BaseAgent):
         return max((score(name) for name in by_name), key=lambda item: item[0])[1]
 
 
+@register_specialist("ar_collector")
 class ARCollectorAgent(BaseAgent):
     """Manage accounts receivable: identify overdue invoices and draft reminders."""
 
@@ -540,6 +564,7 @@ class ARCollectorAgent(BaseAgent):
             return None
 
 
+@register_specialist("parts_availability_checker")
 class PartsAvailabilityCheckerAgent(BaseAgent):
     """Checks parts availability for HVAC jobs against inventory and generates
     reorder recommendations when shortfalls are detected. Follows Clean Architecture.
@@ -658,3 +683,4 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
             success=True,
             data=result_data,
         )
+
