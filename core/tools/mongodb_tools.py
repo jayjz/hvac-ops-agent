@@ -1,4 +1,5 @@
 """MongoDB tools for HVAC OpsForge agent operations with Pydantic validation layer (Phase 4 hardening per TDD skill)."""
+
 from __future__ import annotations
 
 import os
@@ -76,7 +77,9 @@ class MongoDBTools:
                 "job_id": "job_001",
                 "job_type": "heat_pump_install",
                 "customer_name": "ABC Manufacturing",
-                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
+                "scheduled_date": (
+                    datetime.now(timezone.utc) + timedelta(days=3)
+                ).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 8,
             },
@@ -84,7 +87,9 @@ class MongoDBTools:
                 "job_id": "job_002",
                 "job_type": "ac_repair",
                 "customer_name": "XYZ Office Complex",
-                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
+                "scheduled_date": (
+                    datetime.now(timezone.utc) + timedelta(days=5)
+                ).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 3,
             },
@@ -92,7 +97,9 @@ class MongoDBTools:
                 "job_id": "job_003",
                 "job_type": "maintenance",
                 "customer_name": "Downtown Retail",
-                "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+                "scheduled_date": (
+                    datetime.now(timezone.utc) + timedelta(days=7)
+                ).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 2,
             },
@@ -206,8 +213,12 @@ class MongoDBTools:
                 "customer_id": "CUST-ABC-001",
                 "customer_name": "ABC Manufacturing",
                 "amount": 4500.00,
-                "due_date": (datetime.now(timezone.utc) - timedelta(days=45)).isoformat(),
-                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=75)).isoformat(),
+                "due_date": (
+                    datetime.now(timezone.utc) - timedelta(days=45)
+                ).isoformat(),
+                "invoice_date": (
+                    datetime.now(timezone.utc) - timedelta(days=75)
+                ).isoformat(),
                 "days_overdue": 45,
                 "status": "overdue",
             },
@@ -216,8 +227,12 @@ class MongoDBTools:
                 "customer_id": "CUST-XYZ-002",
                 "customer_name": "XYZ Office Complex",
                 "amount": 1850.00,
-                "due_date": (datetime.now(timezone.utc) - timedelta(days=32)).isoformat(),
-                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=62)).isoformat(),
+                "due_date": (
+                    datetime.now(timezone.utc) - timedelta(days=32)
+                ).isoformat(),
+                "invoice_date": (
+                    datetime.now(timezone.utc) - timedelta(days=62)
+                ).isoformat(),
                 "days_overdue": 32,
                 "status": "overdue",
             },
@@ -226,8 +241,12 @@ class MongoDBTools:
                 "customer_id": "CUST-RETAIL-003",
                 "customer_name": "Downtown Retail Center",
                 "amount": 750.00,
-                "due_date": (datetime.now(timezone.utc) - timedelta(days=38)).isoformat(),
-                "invoice_date": (datetime.now(timezone.utc) - timedelta(days=68)).isoformat(),
+                "due_date": (
+                    datetime.now(timezone.utc) - timedelta(days=38)
+                ).isoformat(),
+                "invoice_date": (
+                    datetime.now(timezone.utc) - timedelta(days=68)
+                ).isoformat(),
                 "days_overdue": 38,
                 "status": "overdue",
             },
@@ -277,7 +296,13 @@ class MongoDBTools:
                             "jobs": [],
                         }
                     parts[sku]["total_required"] += p.get("quantity", 1)
-                    job_id = job.job_id if hasattr(job, "job_id") else job.get("_id", "unknown") if isinstance(job, dict) else str(job)
+                    job_id = (
+                        job.job_id
+                        if hasattr(job, "job_id")
+                        else job.get("_id", "unknown")
+                        if isinstance(job, dict)
+                        else str(job)
+                    )
                     parts[sku]["jobs"].append(job_id)
             return parts
         except Exception as exc:

@@ -46,7 +46,12 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
             low_inventory = mongodb_tools.get_low_inventory(threshold_multiplier=1.5)
             required_set = set(request.required_parts)
             matching_low = [
-                item for item in low_inventory if getattr(item, "sku", item.get("sku") if isinstance(item, dict) else None) in required_set
+                item
+                for item in low_inventory
+                if getattr(
+                    item, "sku", item.get("sku") if isinstance(item, dict) else None
+                )
+                in required_set
             ]
 
             # Compute availability_score (real logic: 1.0 - penalty for low stock)
@@ -60,10 +65,21 @@ class PartsAvailabilityCheckerAgent(BaseAgent):
                         ReorderRecommendation(
                             sku=getattr(item, "sku", item.get("sku", "")),
                             suggested_quantity=max(
-                                5, int(getattr(item, "reorder_point", item.get("reorder_point", 10))) * 2
+                                5,
+                                int(
+                                    getattr(
+                                        item,
+                                        "reorder_point",
+                                        item.get("reorder_point", 10),
+                                    )
+                                )
+                                * 2,
                             ),
                             reason="low_stock_below_threshold",
-                            estimated_cost=getattr(item, "unit_cost", item.get("unit_cost", 0)) * 2,
+                            estimated_cost=getattr(
+                                item, "unit_cost", item.get("unit_cost", 0)
+                            )
+                            * 2,
                             priority="high"
                             if getattr(item, "quantity", item.get("quantity", 0)) < 3
                             else "medium",

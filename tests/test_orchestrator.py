@@ -2,16 +2,12 @@
 All tests watched fail first. Registry enables scalable, demo-ready HVAC ops without architecture debt.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 import inspect
 
-from core.agents.base import AgentContext, BaseAgent, AgentResult
+from core.agents.base import AgentContext, BaseAgent
 from core.agents.specialists import (
     SPECIALISTS,
     register_specialist,
-    InventoryForecasterAgent,
-    PartsAvailabilityCheckerAgent,
 )
 from core.orchestrator import run_pm_job
 
