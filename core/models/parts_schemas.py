@@ -1,7 +1,7 @@
-"""Pydantic schemas for PartsAvailabilityChecker (Phase 3 grounding + legacy compatibility).
-Schemas first per clean architecture, TDD, and hvac-refactor-phase.md.
-Combines new models with previous for backward compat.
-JTBD: Structured real-time parts data for Mongo-grounded dashboard, reduces wasted trips by 30-50%.
+"""Pydantic schemas for PartsAvailabilityChecker and ARCollector (Phase 3+6 grounding + legacy compatibility).
+Schemas first per clean architecture, TDD skill, hvac-refactor-phase.md, and PROJECT_MEMORY.md canonical Business VP.
+Now includes Invoice/ARResult for full JTBD loop (parts availability + AR/cashflow for proactive HVAC ops, 30-50% less downtime).
+Canonical VP from PROJECT_MEMORY.md: HVAC OpsForge as AI Co-Pilot; JTBD (functional: real-time validated parts/AR data to avoid delays/multiple trips; emotional: peace of mind on cashflow; social: competitive edge); Porter's Five Forces (supplier power reduced by predictive reorders, rivalry lowered by dashboard speed/visibility, buyer power managed by reliable summaries, substitutes (Excel/ServiceTitan) countered by schema-AI/registry moat, new entrants barrier via proprietary validation); scholarly PdM 38-91% downtime cuts, multi-agent systems, computational intelligence, JTBD framework; quantified 30-50% less downtime/more billable, 25% inventory optimization, faster AR/cashflow.
 """
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
@@ -89,6 +89,39 @@ class JobDocument(BaseModel):
     urgency: Optional[str] = "medium"
 
 
+# Phase 6 ARCollector models for full JTBD loop (AR follow-ups, cashflow scoring combined with Parts)
+class Invoice(BaseModel):
+    """Pydantic model for validated AR invoices from Mongo (Phase 6)."""
+    invoice_id: str = Field(..., min_length=5)
+    amount: float = Field(..., gt=0)
+    due_date: datetime
+    status: str = Field("pending", pattern=r"^(paid|overdue|pending)$")
+    customer_id: str
+    days_overdue: Optional[int] = Field(0, ge=0)
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        return v.lower()
+
+
+class ARResult(BaseModel):
+    """AR + Parts combined result for full JTBD cashflow/availability loop (cites PROJECT_MEMORY.md VP)."""
+    cashflow_score: float = Field(..., ge=0, le=1.0)
+    overdue_count: int = Field(..., ge=0)
+    total_overdue_amount: float = Field(..., ge=0)
+    recommendations: List[str] = Field(default_factory=list)
+    mongo_synced: bool = False
+    combined_parts_availability_score: Optional[float] = None
+    message: str = "AR follow-up with cashflow scoring via validated Mongo + Parts integration per canonical VP"
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    @field_validator("cashflow_score")
+    @classmethod
+    def round_score(cls, v: float) -> float:
+        return round(float(v), 2)
+
+
 class AgentResult(BaseModel):
     """Simple result wrapper for compatibility."""
     success: bool = True
@@ -97,13 +130,15 @@ class AgentResult(BaseModel):
 
 
 __all__ = [
-        "JobPartsRequest",
+    "JobPartsRequest",
     "PartsAvailabilityResult",
     "ReorderRecommendation",
     "RequiredPart",
     "PartsAvailabilityRequest",
     "PartCheckResult",
-    "AgentResult",
     "InventoryItem",
     "JobDocument",
+    "Invoice",
+    "ARResult",
+    "AgentResult",
 ]

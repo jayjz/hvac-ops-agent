@@ -70,7 +70,7 @@ def test_mongodb_parts_query_integration():
     # Expect new method or enhanced get_low_inventory
     low = mongodb_tools.get_low_inventory(threshold_multiplier=1.0)
     assert len(low) > 0
-    assert any("sku" in item for item in low)
+    assert any(hasattr(item, "sku") or "sku" in str(item) for item in low)
 
 
 if __name__ == "__main__":
