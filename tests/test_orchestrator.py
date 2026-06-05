@@ -3,7 +3,8 @@ All tests watched fail first. Registry enables scalable, demo-ready HVAC ops wit
 """
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, AsyncMock
+import inspect
 
 from core.agents.base import AgentContext, BaseAgent, AgentResult
 from core.agents.specialists import (
@@ -65,3 +66,26 @@ def test_orchestrator_supports_dynamic_dispatch():
         agent_cls = SPECIALISTS["parts_availability_checker"]
         agent = agent_cls()
         assert agent.name == "parts_availability_checker"
+
+
+def test_orchestrator_is_100_percent_dynamic():
+    """RED (fails until Green refactor): Orchestrator must use SPECIALISTS registry exclusively.
+    No hardcoded class names like InventoryForecasterAgent in source. Parses execution_plan
+    from LeadArchitect for dynamic dispatch per JTBD (scalable HVAC ops without debt).
+    """
+    source = inspect.getsource(run_pm_job)
+    hardcoded = [
+        "InventoryForecasterAgent",
+        "RiskAssessorAgent",
+        "SchedulerOptimizerAgent",
+        "ARCollectorAgent",
+    ]
+    for cls_name in hardcoded:
+        assert cls_name not in source, (
+            f"Hardcoded {cls_name} violates 100% dynamic rule. Use SPECIALISTS lookup from execution_plan."
+        )
+    assert "SPECIALISTS" in source, "Must import and use registry for dispatch"
+    assert "execution_plan" in source, (
+        "Must consume LeadArchitect execution_plan for dynamic steps"
+    )
+    print("Dynamic dispatch test passed (post-Green).")
