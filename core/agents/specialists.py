@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Optional, Type
 
 from core.agents.base import AgentContext, AgentResult, BaseAgent
 
@@ -26,7 +26,7 @@ def register_specialist(name: str):
             SPECIALISTS[name] = cls
             # Ensure name consistency for demo
             if not hasattr(cls, "name") or not cls.name:
-                cls.name = name
+                setattr(cls, "name", name)
         return cls
 
     return decorator
@@ -245,7 +245,7 @@ class InventoryForecasterAgent(BaseAgent):
         return parts_map.get(job_type, [])
 
     def generate_pre_departure_report(
-        self, jobs_or_parts: list, output_path: str = None
+        self, jobs_or_parts: list, output_path: Optional[str] = None
     ) -> str:
         """Generates pre-departure report. Reuses _forecast_inventory_needs, synthetic methods, logger. Exact skill style for demos. Surgical, DRY, production-grade."""
         if not jobs_or_parts:
@@ -451,7 +451,7 @@ class SchedulerOptimizerAgent(BaseAgent):
             return self._cpm(tasks)
 
     def _optimize_with_pulp(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
-        import pulp
+        import pulp  # type: ignore[import-untyped]
 
         names = [str(task["task"]) for task in tasks]
         durations = {
