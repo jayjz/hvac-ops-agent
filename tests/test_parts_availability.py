@@ -7,7 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from core.agents.specialists import PartsAvailabilityCheckerAgent
-from core.models import AgentResult, RequiredPart
+from core.agents.base import AgentResult
+from core.models import RequiredPart
 
 
 @pytest.mark.asyncio

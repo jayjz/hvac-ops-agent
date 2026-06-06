@@ -8,7 +8,6 @@ from .parts_schemas import (
     PartsAvailabilityRequest,
     PartCheckResult,
     PartsAvailabilityResult,
-    AgentResult,
     JobPartsRequest,
     ReorderRecommendation,
 )
@@ -18,7 +17,6 @@ __all__ = [
     "PartsAvailabilityRequest",
     "PartCheckResult",
     "PartsAvailabilityResult",
-    "AgentResult",
     "JobPartsRequest",
     "ReorderRecommendation",
 ]
