@@ -1,6 +1,6 @@
 """Specialists package with dynamic registry for HVAC agents.
 Registry enables Phase 1 dynamic orchestrator. Split supports scalable maintenance.
-Ruff cleaned and verified 2026-06-06. Push verified with new hash.
+Ruff cleaned and verified 2026-06-06. Circular import fixed by placing specialist imports AFTER decorator with noqa: E402.
 """
 
 from __future__ import annotations
@@ -8,12 +8,6 @@ from __future__ import annotations
 from typing import Dict, Type
 
 from core.agents.base import BaseAgent
-
-from .ar_collector import ARCollectorAgent
-from .inventory_forecaster import InventoryForecasterAgent
-from .parts_availability_checker import PartsAvailabilityCheckerAgent
-from .risk_assessor import RiskAssessorAgent
-from .scheduler_optimizer import SchedulerOptimizerAgent
 
 # === DYNAMIC SPECIALIST REGISTRY ===
 SPECIALISTS: Dict[str, Type[BaseAgent]] = {}
@@ -33,6 +27,14 @@ def register_specialist(name: str):
 
     return decorator
 
+
+# Import all specialist implementations (triggers @register_specialist decorators)
+# Placed AFTER decorator to avoid circular import during package initialization
+from .ar_collector import ARCollectorAgent  # noqa: E402
+from .inventory_forecaster import InventoryForecasterAgent  # noqa: E402
+from .parts_availability_checker import PartsAvailabilityCheckerAgent  # noqa: E402
+from .risk_assessor import RiskAssessorAgent  # noqa: E402
+from .scheduler_optimizer import SchedulerOptimizerAgent  # noqa: E402
 
 __all__ = [
     "SPECIALISTS",

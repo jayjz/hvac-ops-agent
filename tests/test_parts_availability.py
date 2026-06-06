@@ -21,7 +21,7 @@ async def test_all_parts_in_stock():
     context = MagicMock()
     agent.report_progress = AsyncMock()
 
-    required_parts = [RequiredPart(sku="HP-001", name="Heat Pump Unit", quantity=1)]
+    required_parts = [RequiredPart(sku="HP-001", name="Heat Pump Unit", quantity=1, priority="high", suggested_quantity=1, reason="Test stock", estimated_cost=1200.0)]
 
     result: AgentResult = await agent.execute(
         context=context,
@@ -54,7 +54,7 @@ async def test_flags_missing_parts_and_recommends_reorder():
     context = MagicMock()
     agent.report_progress = AsyncMock()
 
-    required_parts = [RequiredPart(sku="FILTER-01", name="Air Filter", quantity=12)]
+    required_parts = [RequiredPart(sku="FILTER-01", name="Air Filter", quantity=12, priority="high", suggested_quantity=12, reason="Low stock for test", estimated_cost=155.88)]
 
     result: AgentResult = await agent.execute(
         context=context,
@@ -83,7 +83,7 @@ async def test_flags_missing_parts_and_recommends_reorder():
         ("no_parts", [], [], True, 1.0, 0, None),
         (
             "zero_stock",
-            [RequiredPart(sku="PUMP-001", name="Main Pump", quantity=5)],
+            [RequiredPart(sku="PUMP-001", name="Main Pump", quantity=5, priority="high", suggested_quantity=5, reason="Low stock for test", estimated_cost=100.0)],
             [{"sku": "PUMP-001", "quantity": 0}],
             False,
             0.0,
@@ -92,7 +92,7 @@ async def test_flags_missing_parts_and_recommends_reorder():
         ),
         (
             "partial",
-            [RequiredPart(sku="BELT-01", name="Drive Belt", quantity=3)],
+            [RequiredPart(sku="BELT-01", name="Drive Belt", quantity=3, priority="high", suggested_quantity=3, reason="Low stock for test", estimated_cost=50.0)],
             [{"sku": "BELT-01", "quantity": 1}],
             False,
             0.33,
@@ -101,7 +101,7 @@ async def test_flags_missing_parts_and_recommends_reorder():
         ),
         (
             "high_shortfall",
-            [RequiredPart(sku="COMP-01", name="Compressor", quantity=10)],
+            [RequiredPart(sku="COMP-01", name="Compressor", quantity=10, priority="high", suggested_quantity=10, reason="Low stock for test", estimated_cost=500.0)],
             [{"sku": "COMP-01", "quantity": 1}],
             False,
             0.1,
