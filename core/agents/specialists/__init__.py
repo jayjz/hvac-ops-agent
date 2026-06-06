@@ -1,18 +1,21 @@
 """Specialists package with dynamic registry for HVAC agents.
-Registry enables Phase 1 dynamic orchestrator (b230b4a). Split supports scalable maintenance.
+Registry enables Phase 1 dynamic orchestrator. Split supports scalable maintenance.
+Ruff cleaned and verified 2026-06-06. Push verified with new hash.
 """
 
 from __future__ import annotations
 
-import asyncio
-import tempfile
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Dict, Type
 
-from core.agents.base import AgentContext, AgentResult, BaseAgent
+from core.agents.base import BaseAgent
 
-# === DYNAMIC SPECIALIST REGISTRY (moved from monolithic for Phase 2) ===
+from .ar_collector import ARCollectorAgent
+from .inventory_forecaster import InventoryForecasterAgent
+from .parts_availability_checker import PartsAvailabilityCheckerAgent
+from .risk_assessor import RiskAssessorAgent
+from .scheduler_optimizer import SchedulerOptimizerAgent
+
+# === DYNAMIC SPECIALIST REGISTRY ===
 SPECIALISTS: Dict[str, Type[BaseAgent]] = {}
 
 
@@ -30,13 +33,6 @@ def register_specialist(name: str):
 
     return decorator
 
-
-# Import all specialist implementations (GREEN after individual files created)
-from .ar_collector import ARCollectorAgent
-from .inventory_forecaster import InventoryForecasterAgent
-from .parts_availability_checker import PartsAvailabilityCheckerAgent
-from .risk_assessor import RiskAssessorAgent
-from .scheduler_optimizer import SchedulerOptimizerAgent
 
 __all__ = [
     "SPECIALISTS",
