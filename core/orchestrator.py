@@ -91,16 +91,13 @@ async def run_pm_job(
         # === 100% DYNAMIC DISPATCH VIA REGISTRY (Phase 1) ===
         # Default sequence from plan or standard HVAC flow. JTBD: supports dynamic
         # addition of PartsAvailabilityChecker, reordering agents without code changes.
-        agent_sequence = execution_plan.get(
-            "steps",
-            [
-                "inventory_forecaster",
-                "risk_assessor",
-                "scheduler_optimizer",
-                "ar_collector",
-                "parts_availability_checker",
-            ],
-        )
+        if isinstance(execution_plan, list):
+            agent_sequence = [step.get("specialist") for step in execution_plan if isinstance(step, dict) and "specialist" in step]
+        else:
+            agent_sequence = execution_plan.get("steps", [])
+        
+        if not any(s in SPECIALISTS for s in agent_sequence):
+            agent_sequence = ["inventory_forecaster", "risk_assessor", "scheduler_optimizer", "ar_collector", "parts_availability_checker"]
         results: Dict[str, Any] = {}
         prior_data: Dict[str, Any] = {
             "project_data": project_data,
