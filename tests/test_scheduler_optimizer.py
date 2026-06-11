@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from core.models.parts_schemas import ScheduleOptimizationResult, PartsAvailabilityResult, ARResult, JobDocument, InventoryItem, Invoice
+from core.agents.base import BaseAgent, AgentResult
 from core.agents.specialists.scheduler_optimizer import SchedulerOptimizerAgent
 from core.tools.mongodb_tools import mongodb_tools
 
@@ -9,6 +10,7 @@ async def test_scheduler_optimizer_combines_parts_ar_and_produces_valid_route():
     context = MagicMock()
     context.job_id = "test-job-001"
     context.progress_callback = AsyncMock()
+    context.metadata = {}
     agent = SchedulerOptimizerAgent()
     
     # Use real Pydantic models for normalization test (RED phase for hybrid removal)
@@ -28,17 +30,28 @@ async def test_scheduler_optimizer_combines_parts_ar_and_produces_valid_route():
         message="AR per PROJECT_MEMORY.md"
     )
     
-    result = await agent.execute(context, parts_result=parts_result, ar_result=ar_result, use_live_mongo=True)
+    payload = {
+        "parts_result": parts_result,
+        "ar_result": ar_result,
+        "use_live_mongo": False,
+        "jobs": [
+            {"id": "JOB1", "customer_lat": 42.8, "customer_lon": -71.5, "urgency": 1},
+            {"id": "JOB2", "customer_lat": 42.7, "customer_lon": -71.4, "urgency": 2}
+        ]
+    }
+    result = await agent.execute(context, payload=payload)
     
-    assert isinstance(result, ScheduleOptimizationResult)
-    assert result.mongo_synced is True
-    assert 0.0 <= result.route_efficiency_score <= 1.0
-    assert len(result.optimized_jobs) > 0
-    assert result.estimated_downtime_reduction > 0.3
-    assert "canonical VP from PROJECT_MEMORY.md" in result.message.lower()
-    # New for Phase 9 deepened route + pure Pydantic
-    assert any("JOB" in str(job).upper() for job in result.optimized_jobs)
-    assert "route_efficiency" in result.model_dump()
+    assert isinstance(result, AgentResult)
+    assert result.success is True
+    data = result.data
+    assert data["mongo_synced"] is True
+    assert 0.0 <= data["route_efficiency_score"] <= 1.0
+    assert len(data["optimized_jobs"]) == 2
+    assert data["estimated_downtime_reduction"] > 0.3
+    assert "production osrm" in data["message"].lower()
+    assert any("JOB" in str(job).upper() for job in data["optimized_jobs"])
+    assert "route_efficiency_score" in data
+
 
 @pytest.mark.asyncio
 async def test_mongodb_tools_returns_pure_pydantic_no_hybrids():

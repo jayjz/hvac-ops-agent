@@ -18,8 +18,8 @@ from . import register_specialist
 
 @register_specialist("ar_collector")
 class ARCollectorAgent(BaseAgent):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(name="ar_collector", **kwargs)
+    def __init__(self, name: str = "ar_collector", **kwargs: Any) -> None:
+        super().__init__(name=name, **kwargs)
 
     async def execute(
         self,

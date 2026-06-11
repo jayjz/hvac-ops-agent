@@ -24,8 +24,8 @@ from . import register_specialist
 
 @register_specialist("parts_availability_checker")
 class PartsAvailabilityCheckerAgent(BaseAgent):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(name="parts_availability_checker", **kwargs)
+    def __init__(self, name: str = "parts_availability_checker", **kwargs: Any) -> None:
+        super().__init__(name=name, **kwargs)
 
     async def execute(
         self, context: AgentContext, payload: Dict[str, Any] | JobPartsRequest
