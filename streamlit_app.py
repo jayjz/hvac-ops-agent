@@ -1,17 +1,10 @@
-import asyncio
-from unittest.mock import MagicMock
 import pandas as pd
 import streamlit as st
-from datetime import datetime
 
-from core.agents.base import AgentContext
-from core.agents.specialists import SPECIALISTS
-from core.models.parts_schemas import JobPartsRequest, ScheduleOptimizationResult
-from core.tools.mongodb_tools import mongodb_tools
 
 def parts_availability_dashboard():
     st.title("HVAC Parts Availability Command Center")
-    use_live_mongo = st.checkbox("Use Live Mongo", value=True)
+    st.checkbox("Use Live Mongo", value=True)
     # (existing parts logic from previous version - abbreviated for surgical edit)
     st.caption("**This saves you $2,100/month in avoided rush orders and downtime (30% fewer wasted rolls).**")
     st.success("Parts tab maintains 25% inventory optimization per canonical metrics.")
