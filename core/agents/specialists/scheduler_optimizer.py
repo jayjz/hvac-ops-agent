@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 import math
-import requests
+import aiohttp
 
 from core.agents.base import BaseAgent, AgentContext, AgentResult
 from core.models.parts_schemas import ScheduleOptimizationResult
@@ -34,15 +34,16 @@ class SchedulerOptimizerAgent(BaseAgent):
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return R * c
 
-    def _get_osrm_distance_matrix(self, coordinates: List[str]) -> List[List[float]]:
+    async def _get_osrm_distance_matrix(self, coordinates: List[str]) -> List[List[float]]:
         """Real OSRM Table API (public demo server). Returns None on failure for haversine fallback."""
         try:
             coords_str = ";".join(coordinates)  # lon,lat format for OSRM
             url = f"https://router.project-osrm.org/table/v1/driving/{coords_str}?annotations=distance"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("distances", [[]])
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    return data.get("distances", [[]])
         except Exception as e:
             print(f"OSRM failed (fallback to haversine): {e}")
             return None
@@ -71,7 +72,7 @@ class SchedulerOptimizerAgent(BaseAgent):
                     coords.append(f"{lon},{lat}")
             
             # Try real OSRM first
-            matrix = self._get_osrm_distance_matrix(coords)
+            matrix = await self._get_osrm_distance_matrix(coords)
             
             distances = []
             if matrix and len(matrix) > 0:
