@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from core.models.parts_schemas import ScheduleOptimizationResult, PartsAvailabilityResult, ARResult, JobDocument, InventoryItem, Invoice
-from core.agents.base import BaseAgent, AgentResult
+from core.models.parts_schemas import PartsAvailabilityResult, ARResult, JobDocument, InventoryItem, Invoice
+from core.agents.base import AgentResult
 from core.agents.specialists.scheduler_optimizer import SchedulerOptimizerAgent
 from core.tools.mongodb_tools import mongodb_tools
 
