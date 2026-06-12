@@ -117,14 +117,15 @@ async def run_pm_job(
             )
             payload = {
                 **prior_data,
-                **results.get(agent_name, {}),
                 "mongodb": mongodb_tools,
                 "agent_name": agent_name,
             }
             agent_result = await agent.run(context, payload)
             if not agent_result.success:
                 raise RuntimeError(f"{agent_name}: " + "; ".join(agent_result.errors))
-            results[agent_name] = agent_result
+            
+            # Wrap in dict so downstream .get("data", {}) extraction does not crash on the AgentResult object
+            results[agent_name] = {"data": agent_result.data}
             prior_data.update(agent_result.data or {})
 
         # Compile all results (dynamic)
