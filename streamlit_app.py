@@ -1,82 +1,382 @@
+from __future__ import annotations
+
+from typing import Any, Dict
+
 import pandas as pd
 import streamlit as st
 
 
-def parts_availability_dashboard():
-    st.title("HVAC Parts Availability Command Center")
-    st.checkbox("Use Live Mongo", value=True)
-    # (existing parts logic from previous version - abbreviated for surgical edit)
-    st.caption("**This saves you $2,100/month in avoided rush orders and downtime (30% fewer wasted rolls).**")
-    st.success("Parts tab maintains 25% inventory optimization per canonical metrics.")
+APP_TITLE = "HVAC OpsForge"
+APP_SUBTITLE = "Autonomous AI Operations Co-Pilot for HVAC & Trade Services"
 
-def owner_roi_simulator():
-    st.title("💰 Owner ROI Simulator - See Your Savings")
-    st.header("HVAC OpsForge: How We Save You $8,400+/Month")
-    st.caption("**Every visual shows clear business value**: This tab demonstrates 30-50% downtime reduction ($4,200/month labor savings), 25% better inventory turns ($1,800/month carrying cost reduction), 30% fewer wasted rolls ($1,400/month fuel/labor), and +$12k AR cashflow improvement. No fluffy demos — this is money on the table for owners.")
 
-    if st.button("Load Realistic Mock Company Data (12 jobs near Nashua NH with lat/lon, realistic inventory, overdue AR)"):
-        st.session_state.mock_loaded = True
-        st.success("✅ Loaded 12-job mock company (Nashua/Hudson NH coordinates, low stock on CAP-5TON/HP-001, $4,175 overdue AR). This data drives all simulations below and shows real $ savings.")
+def configure_page() -> None:
+    """Configure the Streamlit shell once for a wide, demo-ready dashboard."""
+    st.set_page_config(
+        page_title=f"{APP_TITLE} Dashboard",
+        page_icon="AF",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
 
-    if st.button("Run Full Optimization Simulation (Calls Lead Architect → All Specialists)"):
-        with st.spinner("Running Phase 10 simulation (PartsAvailabilityChecker, SchedulerOptimizer with real OSRM/haversine, ARCollector, RiskAssessor)..."):
-            # Simulate agent calls (registry + schemas)
-            mock_result = {
-                "total_monthly_savings": 8400,
-                "downtime_reduction": 0.42,
-                "wasted_rolls_reduction": 0.30,
-                "ar_improvement": 12000,
-                "inventory_turns": 0.25,
+
+def inject_brand_css() -> None:
+    """Apply lightweight brand styling without adding frontend dependencies."""
+    st.markdown(
+        """
+        <style>
+            :root {
+                --opsforge-blue: #0f4c81;
+                --opsforge-blue-dark: #0b2545;
+                --opsforge-green: #0f9f6e;
+                --opsforge-mist: #eef7f4;
+                --opsforge-border: #d8e2ea;
+                --opsforge-text: #102033;
             }
-            st.session_state.simulation = mock_result
-            st.balloons()
+            .main .block-container {
+                padding-top: 1.25rem;
+                padding-bottom: 2rem;
+                max-width: 1280px;
+            }
+            [data-testid="stMetric"] {
+                background: #ffffff;
+                border: 1px solid var(--opsforge-border);
+                border-radius: 8px;
+                padding: 0.9rem 1rem;
+                box-shadow: 0 6px 18px rgba(15, 76, 129, 0.08);
+            }
+            .opsforge-hero {
+                background: linear-gradient(135deg, #0b2545 0%, #0f4c81 58%, #0f9f6e 100%);
+                border-radius: 8px;
+                color: #ffffff;
+                padding: 1.35rem 1.5rem;
+                margin-bottom: 1rem;
+            }
+            .opsforge-brand-row {
+                display: flex;
+                align-items: center;
+                gap: 0.85rem;
+            }
+            .opsforge-mark {
+                align-items: center;
+                background: rgba(255, 255, 255, 0.14);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 8px;
+                display: inline-flex;
+                font-weight: 800;
+                height: 44px;
+                justify-content: center;
+                letter-spacing: 0;
+                width: 44px;
+            }
+            .opsforge-hero h1 {
+                font-size: 2rem;
+                line-height: 1.1;
+                margin: 0;
+            }
+            .opsforge-hero p {
+                color: rgba(255, 255, 255, 0.86);
+                margin: 0.35rem 0 0;
+            }
+            .opsforge-strip {
+                background: var(--opsforge-mist);
+                border: 1px solid #cfe8df;
+                border-radius: 8px;
+                color: var(--opsforge-text);
+                padding: 0.8rem 1rem;
+            }
+            .opsforge-section-label {
+                color: var(--opsforge-blue-dark);
+                font-size: 0.82rem;
+                font-weight: 750;
+                letter-spacing: 0;
+                margin-bottom: 0.35rem;
+                text-transform: uppercase;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    if st.session_state.get("simulation"):
-        sim = st.session_state.simulation
-        col1, col2, col3, col4, col5 = st.columns(5)
-        with col1:
-            st.metric("Total Monthly Savings", f"${sim['total_monthly_savings']:,}", delta="This puts $8,400 more in your pocket every month")
-        with col2:
-            st.metric("Downtime Reduction", f"{sim['downtime_reduction']*100:.0f}%", delta="42% less downtime = $4,200 extra billable hours/month")
-        with col3:
-            st.metric("Wasted Trips/Rolls", f"-{sim['wasted_rolls_reduction']*100:.0f}%", delta="30% fewer wasted rolls = $1,400 fuel/labor saved")
-        with col4:
-            st.metric("AR Cashflow", f"+${sim['ar_improvement']:,}", delta="Faster collections add $12k to cashflow")
-        with col5:
-            st.metric("Inventory Turns", f"+{sim['inventory_turns']*100:.0f}%", delta="25% better turns = $1,800 lower carrying costs")
 
-        st.subheader("Scheduler: Route Optimization (Real Haversine/OSRM)")
-        st.write("**Saved 87 miles this week = $340 fuel/labor**. (Depot at Nashua coordinates, 12 jobs with lat/lon, sorted by urgency + distance).")
-        route_df = pd.DataFrame({
-            "Job": ["JOB-001", "JOB-005", "JOB-003"],
-            "Customer": ["Smith Residence", "Johnson Family", "XYZ Office"],
-            "Distance Saved (miles)": [12.4, 8.7, 15.2],
-            "Value": ["$68 labor", "$48 fuel", "$92 efficiency"]
-        })
-        st.dataframe(route_df, use_container_width=True)
+@st.cache_data(show_spinner=False)
+def build_demo_dataset(scenario: str = "Busy Monday") -> Dict[str, pd.DataFrame]:
+    """Return synthetic HVAC operations data that works without MongoDB."""
+    scenario_multiplier = {
+        "Busy Monday": 1.0,
+        "Heat Wave": 1.24,
+        "AR Cleanup": 0.88,
+    }.get(scenario, 1.0)
 
-        st.subheader("Parts Checker: Cost Avoidance")
-        st.write("**$2,450 avoided rush orders this month (critical HP-001 flagged before tech left yard).**")
-        st.dataframe(pd.DataFrame({"SKU": ["HP-001", "CAP-5TON"], "Avoided Cost": ["$1,450", "$1,000"]}), use_container_width=True)
+    jobs = pd.DataFrame(
+        [
+            {
+                "job_id": "JOB-001",
+                "customer": "Smith Residence",
+                "city": "Nashua",
+                "priority": "Emergency",
+                "risk": "Missing HP-001",
+                "eta_window": "8:00-10:00",
+            },
+            {
+                "job_id": "JOB-005",
+                "customer": "Johnson Family",
+                "city": "Hudson",
+                "priority": "High",
+                "risk": "Condenser capacitor low stock",
+                "eta_window": "10:30-12:00",
+            },
+            {
+                "job_id": "JOB-003",
+                "customer": "XYZ Office",
+                "city": "Merrimack",
+                "priority": "Standard",
+                "risk": "AR balance open",
+                "eta_window": "1:00-3:00",
+            },
+        ]
+    )
+    inventory = pd.DataFrame(
+        [
+            {
+                "sku": "HP-001",
+                "part": "Heat pump control board",
+                "on_hand": 2,
+                "reorder_point": 5,
+                "status": "Critical",
+            },
+            {
+                "sku": "CAP-5TON",
+                "part": "5 ton capacitor",
+                "on_hand": 4,
+                "reorder_point": 8,
+                "status": "Low",
+            },
+            {
+                "sku": "FILTER-20X25",
+                "part": "20x25 filter",
+                "on_hand": 32,
+                "reorder_point": 18,
+                "status": "Healthy",
+            },
+        ]
+    )
+    ar = pd.DataFrame(
+        [
+            {
+                "invoice": "INV-001",
+                "customer": "Smith Residence",
+                "amount": int(1250 * scenario_multiplier),
+                "days_overdue": 14,
+                "next_action": "Send owner-approved reminder",
+            },
+            {
+                "invoice": "INV-003",
+                "customer": "XYZ Office",
+                "amount": int(2100 * scenario_multiplier),
+                "days_overdue": 31,
+                "next_action": "Escalate with service history",
+            },
+        ]
+    )
+    return {"jobs": jobs, "inventory": inventory, "ar": ar}
 
-        st.subheader("AR Collector: Projected Collections")
-        st.write("**$12,000 faster cashflow from 4 overdue invoices (automated reminders sent).**")
-        st.dataframe(pd.DataFrame({"Invoice": ["INV-001", "INV-003"], "Amount": [1250, 2100], "Projected Collection": ["7 days", "14 days"]}), use_container_width=True)
 
-        st.subheader("Risk & Porter's Five Forces Moat")
-        st.write("**This dashboard creates a proprietary moat (registry + schemas) that raises barriers for new entrants while lowering rivalry through 30-50% downtime cuts.**")
-        st.success("**JTBD (verbatim from PROJECT_MEMORY.md)**: When planning or starting a daily job, owners/techs want real-time validated parts availability, smart reorders, and risk flags from Mongo so they avoid delays, complete on first visit, reduce wasted rolls by 30%, cut downtime 30-50%, optimize inventory 25%, and improve cashflow — giving peace of mind and competitive edge.")
+def build_simulation_result(dataset: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
+    """Build the deterministic demo result shown after the agent run."""
+    overdue_total = int(dataset["ar"]["amount"].sum())
+    critical_parts = int((dataset["inventory"]["status"] != "Healthy").sum())
+    total_monthly_savings = 8400 + (critical_parts * 250)
+    return {
+        "total_monthly_savings": total_monthly_savings,
+        "downtime_reduction": 0.42,
+        "wasted_rolls_reduction": 0.30,
+        "ar_improvement": max(12000, overdue_total * 3),
+        "inventory_turns": 0.25,
+        "agent_trace": [
+            "LeadArchitect assembled the Monday operating plan.",
+            "PartsAvailabilityChecker flagged HP-001 and CAP-5TON before dispatch.",
+            "SchedulerOptimizer resequenced three priority stops around parts risk.",
+            "ARCollector prepared two follow-up actions for overdue balances.",
+            "RiskAssessor summarized downtime, cashflow, and first-visit-completion risk.",
+        ],
+    }
 
-    st.caption("**This entire tab is built around money on the table. Every KPI and visual ties directly to $ savings, % reductions, and the canonical VP/JTBD/Porter's from PROJECT_MEMORY.md. No single-feature fluff.**")
 
-def main():
-    st.set_page_config(page_title="HVAC OpsForge Owner ROI Dashboard", layout="wide")
-    st.title("HVAC OpsForge - Owner ROI-Focused Simulator")
-    tab1, tab2 = st.tabs(["💰 Owner ROI Simulator (Hero)", "Parts Availability"])
+def _ensure_session_defaults() -> None:
+    if "scenario" not in st.session_state:
+        st.session_state.scenario = "Busy Monday"
+    if "demo_loaded" not in st.session_state:
+        st.session_state.demo_loaded = False
+    if "dataset" not in st.session_state:
+        st.session_state.dataset = build_demo_dataset(st.session_state.scenario)
+    if "simulation" not in st.session_state:
+        st.session_state.simulation = None
+
+
+def render_sidebar() -> None:
+    """Render the basic controls for the Phase 1 demo loop."""
+    st.sidebar.markdown("### HVAC OpsForge")
+    st.sidebar.caption(APP_SUBTITLE)
+    scenario = st.sidebar.selectbox(
+        "Demo scenario",
+        ["Busy Monday", "Heat Wave", "AR Cleanup"],
+        index=["Busy Monday", "Heat Wave", "AR Cleanup"].index(st.session_state.scenario),
+    )
+    if scenario != st.session_state.scenario:
+        st.session_state.scenario = scenario
+        st.session_state.dataset = build_demo_dataset(scenario)
+        st.session_state.simulation = None
+        st.session_state.demo_loaded = False
+
+    st.sidebar.checkbox(
+        "Use Live Mongo",
+        value=False,
+        help="Off keeps the demo fully self-contained with synthetic HVAC data.",
+        key="use_live_mongo",
+    )
+    st.sidebar.checkbox("Show Agent Trace", value=True, key="show_agent_trace")
+
+    if st.sidebar.button("Load Demo Company", use_container_width=True):
+        st.session_state.dataset = build_demo_dataset(st.session_state.scenario)
+        st.session_state.demo_loaded = True
+        st.session_state.simulation = None
+        st.sidebar.success("Demo company loaded.")
+
+    if st.sidebar.button("Run Multi-Agent Dispatch", use_container_width=True):
+        dataset = st.session_state.dataset
+        with st.spinner("Lead Architect is coordinating specialist agents..."):
+            st.session_state.simulation = build_simulation_result(dataset)
+            st.session_state.demo_loaded = True
+        st.sidebar.success("Agent run complete.")
+
+
+def render_hero() -> None:
+    """Render the branded top section."""
+    st.markdown(
+        f"""
+        <section class="opsforge-hero">
+            <div class="opsforge-brand-row">
+                <div class="opsforge-mark">AF</div>
+                <div>
+                    <h1>{APP_TITLE}</h1>
+                    <p>{APP_SUBTITLE}</p>
+                </div>
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <div class="opsforge-strip">
+            Load a synthetic HVAC company, run the Lead Architect orchestration, and inspect the
+            specialist outputs that protect first-visit completion, inventory turns, routes, and cashflow.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_kpi_row(simulation: Dict[str, Any] | None) -> None:
+    """Render business outcome metrics for the current demo state."""
+    sim = simulation or {
+        "total_monthly_savings": 0,
+        "downtime_reduction": 0.0,
+        "wasted_rolls_reduction": 0.0,
+        "ar_improvement": 0,
+        "inventory_turns": 0.0,
+    }
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Monthly Savings", f"${sim['total_monthly_savings']:,}", "$8.4k target")
+    col2.metric("Downtime", f"-{sim['downtime_reduction'] * 100:.0f}%", "owner-visible")
+    col3.metric("Wasted Trips", f"-{sim['wasted_rolls_reduction'] * 100:.0f}%", "fewer rolls")
+    col4.metric("AR Cashflow", f"+${sim['ar_improvement']:,}", "faster collection")
+    col5.metric("Inventory Turns", f"+{sim['inventory_turns'] * 100:.0f}%", "leaner stock")
+
+
+def render_agent_console(simulation: Dict[str, Any] | None) -> None:
+    """Show the multi-agent roster and the current synthetic execution state."""
+    st.subheader("Agent Command Center")
+    st.caption("Lead Architect coordinates specialist agents while the owner stays in control.")
+    roster = pd.DataFrame(
+        [
+            {"Agent": "LeadArchitect", "Role": "Plans and coordinates the workflow", "Status": "Ready"},
+            {"Agent": "PartsAvailabilityChecker", "Role": "Validates parts before dispatch", "Status": "Ready"},
+            {"Agent": "SchedulerOptimizer", "Role": "Sequences stops by risk and location", "Status": "Ready"},
+            {"Agent": "ARCollector", "Role": "Prepares overdue invoice follow-ups", "Status": "Ready"},
+            {"Agent": "RiskAssessor", "Role": "Flags downtime, cashflow, and job risk", "Status": "Ready"},
+        ]
+    )
+    if simulation:
+        roster["Status"] = "Completed"
+    st.dataframe(roster, use_container_width=True, hide_index=True)
+
+    if simulation and st.session_state.get("show_agent_trace", True):
+        st.markdown('<div class="opsforge-section-label">Execution Trace</div>', unsafe_allow_html=True)
+        for item in simulation["agent_trace"]:
+            st.info(item)
+
+
+def render_operations_tabs(dataset: Dict[str, pd.DataFrame]) -> None:
+    """Render basic interactive tables for the Phase 1 demo."""
+    jobs_tab, inventory_tab, ar_tab = st.tabs(["Dispatch", "Inventory", "AR Follow-up"])
+    with jobs_tab:
+        st.subheader("Priority Dispatch Board")
+        st.dataframe(dataset["jobs"], use_container_width=True, hide_index=True)
+    with inventory_tab:
+        st.subheader("Parts Availability Watchlist")
+        st.dataframe(dataset["inventory"], use_container_width=True, hide_index=True)
+        st.caption("Focus: prevent failed first visits by surfacing low-stock parts before the truck rolls.")
+    with ar_tab:
+        st.subheader("Accounts Receivable Follow-up Queue")
+        st.dataframe(dataset["ar"], use_container_width=True, hide_index=True)
+        st.caption("Focus: protect cashflow with owner-reviewed next actions.")
+
+
+def owner_roi_simulator() -> None:
+    """Render the branded owner ROI simulator for synthetic HVAC demo data."""
+    dataset = st.session_state.dataset
+    simulation = st.session_state.simulation
+    render_hero()
+
+    if not st.session_state.demo_loaded:
+        st.warning("Start in the sidebar: load the demo company, then run the multi-agent dispatch.")
+
+    render_kpi_row(simulation)
+    st.divider()
+    render_agent_console(simulation)
+    st.divider()
+    render_operations_tabs(dataset)
+
+
+def parts_availability_dashboard() -> None:
+    """Use Live Mongo toggle, validated schemas from PROJECT_MEMORY.md canonical VP, and 30-50% less downtime framing."""
+    st.title("HVAC Parts Availability Command Center")
+    st.checkbox(
+        "Use Live Mongo (validated schemas from PROJECT_MEMORY.md canonical VP)",
+        value=st.session_state.get("use_live_mongo", False),
+    )
+    st.caption(
+        "Parts visibility protects first-visit completion, reduces wasted rolls, and supports the 30-50% downtime reduction target."
+    )
+    dataset = st.session_state.get("dataset", build_demo_dataset())
+    st.dataframe(dataset["inventory"], use_container_width=True, hide_index=True)
+    st.success("Parts tab maintains the 25% inventory optimization target from the canonical metrics.")
+
+
+def main() -> None:
+    configure_page()
+    inject_brand_css()
+    _ensure_session_defaults()
+    render_sidebar()
+
+    tab1, tab2 = st.tabs(["Owner ROI Simulator", "Parts Availability"])
     with tab1:
         owner_roi_simulator()
     with tab2:
         parts_availability_dashboard()
+
 
 if __name__ == "__main__":
     main()
