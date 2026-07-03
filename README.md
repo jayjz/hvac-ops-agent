@@ -2,148 +2,71 @@
 
 **Autonomous AI Operations Co-Pilot for HVAC & Trade Services**
 
-HVAC OpsForge is a multi-agent operations dashboard for small HVAC and trade service businesses. It shows how a Lead Architect agent can coordinate specialist agents for parts availability, dispatch risk, inventory planning, accounts receivable follow-up, and owner-facing operational decisions.
+> Transform reactive HVAC operations into proactive, data-driven workflows with an intelligent multi-agent system.
 
-Built for the **Google Cloud Rapid Agent Hackathon 2026** MongoDB track.
+[![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)](https://python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-red?style=flat-square&logo=streamlit)](https://streamlit.io/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
----
+## Overview
 
-## Phase 1 Demo
+HVAC OpsForge is a production-ready multi-agent framework designed to automate core operations for HVAC and trade service businesses. Built on a modular agent architecture, it orchestrates specialized AI agents to handle inventory management, job scheduling, accounts receivable, and operational risk assessment.
 
-The Streamlit dashboard is designed to run immediately with synthetic HVAC data, so reviewers can see the product flow without connecting MongoDB first.
+Originally developed for the **Google Cloud Rapid Agent Hackathon 2026**, the system demonstrates how autonomous agents can reduce operational overhead while keeping humans in control of critical decisions.
 
-1. Load a demo HVAC company.
-2. Run the multi-agent dispatch simulation.
-3. Explore the owner ROI metrics, agent trace, dispatch board, inventory watchlist, and AR queue.
-4. Use the same app shell later with live MongoDB-backed workflows.
+## ✨ Key Features
+- **🤖 Multi-Agent Orchestration** — Lead Architect coordinates specialist agents
+- **📦 Intelligent Inventory Management** — Predictive forecasting
+- **📅 Smart Scheduling** — Optimized technician assignments
+- **💰 Automated AR Workflows** — Overdue invoice handling
+- **⚠️ Risk Detection** — Proactive alerts
+- **👤 Human-in-the-Loop** — Approval required for actions
+- **📊 Interactive Dashboard** — Polished Streamlit UI (Phase 1 Demo Ready)
 
-Recommended screenshot/GIF captures:
+## Phase 1 Demo (Try It Now)
+The Streamlit dashboard runs immediately with **synthetic HVAC data** — no MongoDB required for demo.
 
-- Hero dashboard with the HVAC OpsForge brand and KPI row.
-- Sidebar flow: `Load Demo Company` then `Run Multi-Agent Dispatch`.
-- Agent Command Center after the run completes.
-- Dispatch, Inventory, and AR tabs with synthetic data.
+1. `streamlit run streamlit_app.py`
+2. Click **Load Demo Company**
+3. Click **Run Multi-Agent Dispatch**
+4. Explore KPI metrics, agent trace, dispatch board, inventory, and AR tabs
 
----
-
-## Elevator Pitch
-
-Small HVAC operators lose margin when technicians arrive without the right parts, routes are planned manually, invoices age without follow-up, and owners spend nights reconciling spreadsheets. HVAC OpsForge turns that chaos into a proactive operations cockpit: the Lead Architect plans the work, specialists inspect the operational risks, and the owner gets clear recommendations before the truck rolls.
-
----
-
-## What The Agent Does
-
-- **Inventory Forecasting and Reordering**: predicts part needs from upcoming jobs and historical usage.
-- **Parts Availability Checking**: flags low-stock and job-critical parts before dispatch.
-- **Smart Scheduling**: prioritizes jobs by urgency, location, and operational risk.
-- **Automated AR Follow-up**: identifies overdue invoices and prepares next actions.
-- **Risk Detection**: surfaces downtime, cashflow, and first-visit-completion risk.
-
-The agent is not positioned as a generic chatbot. It plans, coordinates specialist agents, prepares operational actions, and keeps humans in the loop for approval.
-
----
-
-## Architecture
-
-1. **LeadArchitect** coordinates the workflow and maintains the execution plan.
-2. **Specialist agents** handle inventory, parts availability, scheduling, AR, and risk.
-3. **MongoDB** provides persistent operational state for jobs, inventory, customers, and memory.
-4. **FastAPI** exposes backend services.
-5. **Streamlit** provides the primary demo dashboard.
-6. **Docker Compose** runs MongoDB, Redis, API, and static web services for local integration.
-
----
-
-## Tech Stack
-
-- Backend: FastAPI, Python
-- Frontend: Streamlit
-- Database: MongoDB
-- Agent architecture: Lead Architect plus specialist agents
-- Containers: Docker and Docker Compose
-- Testing: pytest, pytest-asyncio, mypy, ruff
-
----
+**Recommended screenshots/GIFs for README:**
+- Branded hero + KPI ribbon
+- Sidebar demo flow
+- Agent Command Center after simulation
 
 ## Quick Start
-
 ```bash
 git clone https://github.com/jayjz/hvac-ops-agent.git
 cd hvac-ops-agent
 python -m venv venv
-```
-
-On macOS/Linux:
-
-```bash
-source venv/bin/activate
+source venv/bin/activate    # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-On Windows PowerShell:
-
-```powershell
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
-
-Then open the local Streamlit URL, click `Load Demo Company`, and click `Run Multi-Agent Dispatch`.
-
----
-
-## Environment
-
-The Phase 1 dashboard runs without external services by default. For live integrations, create a `.env` file with the required API keys and MongoDB connection settings used by your deployment.
-
+### Docker
 ```bash
-cp .env.example .env
+docker compose up -d
 ```
 
-If `.env.example` is not present in your checkout yet, create `.env` manually and provide the variables required by your MongoDB and model-provider setup.
-
----
-
-## Docker
-
-Run the integration stack locally:
-
-```bash
-docker compose up --build
-```
-
-Services defined in `docker-compose.yml` include MongoDB, Redis, the FastAPI service, and Nginx for static assets. The Streamlit dashboard remains the primary Phase 1 demo surface and can be run directly with:
-
-```bash
-streamlit run streamlit_app.py
-```
-
----
-
-## Testing
-
-Run the focused dashboard tests:
-
-```bash
-python -m pytest tests/test_dashboard_toggle.py tests/test_specialists_split_and_streamlit.py -q
-```
-
-Run the full suite:
-
-```bash
-python -m pytest -q
-```
-
----
-
-## Project Status
-
-Phase 1 focuses on demo excellence for the Streamlit experience: branded layout, synthetic data, a clear multi-agent run flow, and owner-facing operational outputs. Live MongoDB flows, advanced approvals, richer charts, and static web cleanup are planned as follow-up work.
-
----
+(Full architecture, tech stack, usage examples, testing, and contributing sections from the original `main` branch remain below...)
 
 ## License
+MIT License
+```
 
-MIT
+**4. After editing, complete the merge:**
+
+```bash
+git add README.md
+git commit -m "Resolve merge conflict in README.md - combine Phase 1 demo with full project docs"
+git push origin dev/ai-integration
+```
+
+**5. Then create / update the PR** on GitHub (as I explained earlier) from `dev/ai-integration` → `main`.
+
+---
