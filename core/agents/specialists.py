@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
-from datetime import datetime
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -406,7 +406,12 @@ class ARCollectorAgent(BaseAgent):
         chart_path = self._risk_chart(risks)
         high_risks = [risk for risk in risks if risk.get("severity") == "High"]
         
-        total_overdue = sum(inv.get("amount", 0) for inv in overdue_invoices)
+        total_overdue = sum(float(inv.get("amount", 0) or 0) for inv in overdue_invoices)
+        now = datetime.utcnow()
+        invoice_ages = [
+            max((now - self._coerce_datetime(inv.get("due_date"), now)).days, 0)
+            for inv in overdue_invoices
+        ]
         
         return {
             "summary": f"HVAC operations analysis complete. Found {len(overdue_invoices)} overdue invoices totaling ${total_overdue:,.2f}.",
@@ -417,10 +422,7 @@ class ARCollectorAgent(BaseAgent):
             "ar_summary": {
                 "overdue_count": len(overdue_invoices),
                 "total_amount": total_overdue,
-                "oldest_invoice_days": max(
-                    [(datetime.utcnow() - inv.get("due_date", datetime.utcnow())).days 
-                     for inv in overdue_invoices] or [0]
-                ),
+                "oldest_invoice_days": max(invoice_ages or [0]),
             },
             "recommended_actions": [
                 f"Send reminders for {len(overdue_invoices)} overdue invoices (${total_overdue:,.2f} total).",
@@ -429,6 +431,31 @@ class ARCollectorAgent(BaseAgent):
             ],
             "risk_chart_path": chart_path,
         }
+
+    @staticmethod
+    def _coerce_datetime(value: Any, default: datetime) -> datetime:
+        """Return a naive UTC datetime for Mongo, ISO string, date, or missing values."""
+        if isinstance(value, datetime):
+            if value.tzinfo is not None:
+                return value.astimezone(timezone.utc).replace(tzinfo=None)
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, time.min)
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return default
+            try:
+                parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                if parsed.tzinfo is not None:
+                    return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+                return parsed
+            except ValueError:
+                try:
+                    return datetime.combine(date.fromisoformat(raw[:10]), time.min)
+                except ValueError:
+                    return default
+        return default
 
     def _get_synthetic_invoices(self) -> List[Dict[str, Any]]:
         """Fallback synthetic invoice data for demo."""

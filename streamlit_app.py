@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 from io import BytesIO
 import tempfile
 from pathlib import Path
@@ -297,6 +298,35 @@ def format_bytes(size: int) -> str:
     return f"{size} B"
 
 
+def build_demo_dataset() -> dict[str, list[dict[str, Any]]]:
+    """Build Streamlit-owned synthetic demo data with normalized date types."""
+    now = datetime.utcnow()
+    return {
+        "overdue_invoices": [
+            {
+                "invoice_id": "INV-DEMO-001",
+                "customer_id": "CUST-SMITH",
+                "customer_name": "Smith Residence",
+                "amount": 1250.00,
+                "due_date": now - timedelta(days=45),
+                "invoice_date": now - timedelta(days=75),
+                "days_overdue": 45,
+                "status": "overdue",
+            },
+            {
+                "invoice_id": "INV-DEMO-002",
+                "customer_id": "CUST-XYZ",
+                "customer_name": "XYZ Office",
+                "amount": 2100.00,
+                "due_date": now - timedelta(days=32),
+                "invoice_date": now - timedelta(days=62),
+                "days_overdue": 32,
+                "status": "overdue",
+            },
+        ]
+    }
+
+
 def run_job_with_live_progress(project_path: str | None, goals: list[str], progress: Any, status: Any) -> dict[str, Any]:
     job_id = f"streamlit-pm-{uuid4().hex[:10]}"
     jobs = {
@@ -349,6 +379,12 @@ def enforce_synthetic_baseline(result: dict[str, Any], goals: list[str]) -> dict
     fixed_risks = synthetic_risks(len(fixed_requirements))
     fixed["requirements_register"] = fixed_requirements
     fixed["risk_register"] = fixed_risks
+    demo_data = build_demo_dataset()
+    overdue_invoices = demo_data["overdue_invoices"]
+    total_overdue = sum(float(invoice.get("amount", 0) or 0) for invoice in overdue_invoices)
+    fixed["overdue_invoices"] = overdue_invoices
+    fixed["total_overdue_amount"] = total_overdue
+    fixed["invoices_count"] = len(overdue_invoices)
 
     report = dict(fixed.get("pm_report", {}))
     schedule = fixed.get("optimized_schedule", {})
@@ -359,6 +395,14 @@ def enforce_synthetic_baseline(result: dict[str, Any], goals: list[str]) -> dict
             "high_risk_count": 1,
             "planned_duration_days": schedule.get("duration_days", report.get("planned_duration_days")),
             "critical_path": schedule.get("critical_path", report.get("critical_path", [])),
+            "ar_summary": {
+                "overdue_count": len(overdue_invoices),
+                "total_amount": total_overdue,
+                "oldest_invoice_days": max(
+                    (int(invoice.get("days_overdue", 0) or 0) for invoice in overdue_invoices),
+                    default=0,
+                ),
+            },
             "recommended_actions": report.get("recommended_actions")
             or [
                 "Review requirements register with owner and discipline leads.",
