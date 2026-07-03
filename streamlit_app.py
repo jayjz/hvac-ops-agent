@@ -91,7 +91,7 @@ def render_sidebar() -> tuple[str, str | None, list[str], dict[str, Any]]:
         st.markdown('<div class="sidebar-title">Project Setup</div>', unsafe_allow_html=True)
         st.caption("Choose a source, tune the goals, then run the PM orchestrator.")
 
-        synthetic_clicked = st.button("Use Synthetic HVAC Data", use_container_width=True)
+        synthetic_clicked = st.button("Use Synthetic HVAC Data", width="stretch")
         if synthetic_clicked:
             st.session_state["source_mode"] = "synthetic"
             st.session_state.pop("upload_dir", None)
@@ -175,7 +175,7 @@ def render_run_panel(source_mode: str, project_path: str | None, goals: list[str
         return st.button(
             "Run AgentForge PM",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=disabled,
         )
 
@@ -486,13 +486,21 @@ def render_results(result: dict[str, Any]) -> None:
     requirements_df = pd.DataFrame(result.get("requirements_register", []))
     risks_df = pd.DataFrame(result.get("risk_register", []))
     schedule_df = pd.DataFrame(result.get("optimized_schedule", {}).get("tasks", []))
+    ar_df = pd.DataFrame(result.get("overdue_invoices", []))
     risk_chart_bytes = resolve_risk_chart(report, risks_df)
 
     st.markdown('<div class="section-kicker">Results</div>', unsafe_allow_html=True)
-    render_success_banner(report, requirements_df, risks_df, schedule_df, risk_chart_bytes)
+    render_success_banner(
+        report,
+        requirements_df,
+        risks_df,
+        schedule_df,
+        ar_df,
+        risk_chart_bytes,
+    )
 
-    overview, requirements, risks, schedule, summary = st.tabs(
-        ["Overview", "Requirements", "Risks", "Schedule", "Summary"]
+    overview, requirements, risks, schedule, ar, summary = st.tabs(
+        ["Overview", "Requirements", "Risks", "Schedule", "AR", "Summary"]
     )
     with overview:
         render_overview_tab(report, result, requirements_df, risks_df, schedule_df, risk_chart_bytes)
@@ -502,6 +510,8 @@ def render_results(result: dict[str, Any]) -> None:
         render_risks_tab(risks_df, risk_chart_bytes)
     with schedule:
         render_schedule_tab(schedule_df)
+    with ar:
+        render_ar_tab(ar_df)
     with summary:
         render_summary_tab(report, result)
 
@@ -511,10 +521,11 @@ def render_success_banner(
     requirements_df: pd.DataFrame,
     risks_df: pd.DataFrame,
     schedule_df: pd.DataFrame,
+    ar_df: pd.DataFrame,
     risk_chart_bytes: bytes | None,
 ) -> None:
     zip_bytes = build_report_zip(report, requirements_df, risks_df, schedule_df, risk_chart_bytes)
-    left, right = st.columns([0.72, 0.28], vertical_alignment="center")
+    left, right = st.columns([0.66, 0.34], vertical_alignment="center")
     with left:
         st.markdown(
             """
@@ -526,13 +537,39 @@ def render_success_banner(
             unsafe_allow_html=True,
         )
     with right:
-        st.download_button(
-            "Download Full Report",
+        st.markdown("**Exports**")
+        primary_export, markdown_export = st.columns(2)
+        primary_export.download_button(
+            "Full ZIP",
             data=zip_bytes,
             file_name="agentforge_pm_report.zip",
             mime="application/zip",
-            use_container_width=True,
+            width="stretch",
         )
+        markdown_export.download_button(
+            "Markdown",
+            data=build_summary_markdown(report).encode("utf-8"),
+            file_name="hvac_opsforge_report.md",
+            mime="text/markdown",
+            width="stretch",
+        )
+        csv_exports = st.columns(2)
+        if not schedule_df.empty:
+            csv_exports[0].download_button(
+                "Dispatch CSV",
+                data=schedule_df.to_csv(index=False).encode("utf-8"),
+                file_name="hvac_opsforge_dispatch.csv",
+                mime="text/csv",
+                width="stretch",
+            )
+        if not ar_df.empty:
+            csv_exports[1].download_button(
+                "AR CSV",
+                data=ar_df.to_csv(index=False).encode("utf-8"),
+                file_name="hvac_opsforge_ar.csv",
+                mime="text/csv",
+                width="stretch",
+            )
 
 
 def render_overview_tab(
@@ -561,7 +598,7 @@ def render_overview_tab(
     with right:
         st.markdown('<div class="panel-title">Risk Exposure</div>', unsafe_allow_html=True)
         if risk_chart_bytes:
-            st.image(risk_chart_bytes, caption="Top PM risks", use_container_width=True)
+            st.image(risk_chart_bytes, caption="Top PM risks", width="stretch")
         elif risks_df.empty:
             st.info("No risk chart data returned.")
 
@@ -571,7 +608,7 @@ def render_requirements_tab(requirements_df: pd.DataFrame) -> None:
     if requirements_df.empty:
         st.info("No requirements were returned.")
         return
-    st.dataframe(requirements_df, hide_index=True, use_container_width=True)
+    st.dataframe(requirements_df, hide_index=True, width="stretch")
     download_csv("Download Requirements CSV", requirements_df, "agentforge_requirements.csv")
 
 
@@ -582,17 +619,17 @@ def render_risks_tab(risks_df: pd.DataFrame, risk_chart_bytes: bytes | None) -> 
         if risks_df.empty:
             st.info("No risks were returned.")
         else:
-            st.dataframe(risks_df, hide_index=True, use_container_width=True)
+            st.dataframe(risks_df, hide_index=True, width="stretch")
             download_csv("Download Risk CSV", risks_df, "agentforge_risks.csv")
     with risk_chart:
         if risk_chart_bytes:
-            st.image(risk_chart_bytes, caption="Top PM risks", use_container_width=True)
+            st.image(risk_chart_bytes, caption="Top PM risks", width="stretch")
             st.download_button(
                 "Download Risk Chart PNG",
                 data=risk_chart_bytes,
                 file_name="agentforge_risk_chart.png",
                 mime="image/png",
-                use_container_width=True,
+                width="stretch",
             )
 
 
@@ -601,9 +638,55 @@ def render_schedule_tab(schedule_df: pd.DataFrame) -> None:
     if schedule_df.empty:
         st.info("No schedule tasks were returned.")
         return
-    st.pyplot(build_gantt_figure(schedule_df), use_container_width=True)
-    st.dataframe(schedule_df, hide_index=True, use_container_width=True)
+    st.pyplot(build_gantt_figure(schedule_df), width="stretch")
+    st.dataframe(schedule_df, hide_index=True, width="stretch")
     download_csv("Download Schedule CSV", schedule_df, "agentforge_schedule.csv")
+
+
+def render_ar_tab(ar_df: pd.DataFrame) -> None:
+    st.markdown('<div class="panel-title">AR Follow-up Queue</div>', unsafe_allow_html=True)
+    if ar_df.empty:
+        st.info("No overdue invoices were returned.")
+        return
+
+    st.dataframe(ar_df, hide_index=True, width="stretch")
+    download_csv("Download AR CSV", ar_df, "hvac_opsforge_ar.csv")
+
+    st.markdown("**Owner review**")
+    feedback = st.session_state.get("ar_decision_feedback")
+    if feedback:
+        st.success(feedback)
+
+    for idx, invoice in ar_df.iterrows():
+        invoice_id = str(
+            invoice.get("invoice_id")
+            or invoice.get("_id")
+            or f"invoice-{idx + 1}"
+        )
+        customer = invoice.get("customer_name") or invoice.get("customer_id") or "Customer"
+        amount = float(invoice.get("amount", 0) or 0)
+        decision_key = f"ar_decision_{invoice_id}"
+        current_decision = st.session_state.get(decision_key, "Pending")
+
+        invoice_col, status_col, approve_col, reject_col = st.columns(
+            [0.46, 0.18, 0.18, 0.18],
+            vertical_alignment="center",
+        )
+        invoice_col.write(f"**{invoice_id}**")
+        invoice_col.caption(f"{customer} - ${amount:,.2f}")
+        status_col.info(current_decision)
+        if approve_col.button("Approve", key=f"approve_{invoice_id}", width="stretch"):
+            st.session_state[decision_key] = "Approved"
+            st.session_state["ar_decision_feedback"] = (
+                f"Approved AR follow-up for {invoice_id}."
+            )
+            st.rerun()
+        if reject_col.button("Reject", key=f"reject_{invoice_id}", width="stretch"):
+            st.session_state[decision_key] = "Rejected"
+            st.session_state["ar_decision_feedback"] = (
+                f"Rejected AR follow-up for {invoice_id}."
+            )
+            st.rerun()
 
 
 def render_summary_tab(report: dict[str, Any], result: dict[str, Any]) -> None:
@@ -627,7 +710,7 @@ def download_csv(label: str, frame: pd.DataFrame, file_name: str) -> None:
         data=frame.to_csv(index=False).encode("utf-8"),
         file_name=file_name,
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
 
