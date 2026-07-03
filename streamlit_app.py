@@ -18,6 +18,7 @@ import pandas as pd
 import streamlit as st
 
 from core.orchestrator import run_pm_job
+from core.tools.mongodb_tools import mongodb_tools
 
 
 DEFAULT_GOALS = [
@@ -27,6 +28,13 @@ DEFAULT_GOALS = [
 ]
 
 SUPPORTED_UPLOAD_TYPES = ["txt", "md", "csv", "xlsx", "xlsm", "pdf"]
+
+
+class PMRunError(RuntimeError):
+    def __init__(self, message: str, *, partial_result: dict[str, Any] | None, trace: list[str]) -> None:
+        super().__init__(message)
+        self.partial_result = partial_result
+        self.trace = trace
 
 
 def main() -> None:
@@ -39,8 +47,8 @@ def main() -> None:
     inject_styles()
 
     render_app_header()
-    source_mode, project_path, goals, upload_meta = render_sidebar()
-    run_clicked = render_run_panel(source_mode, project_path, goals, upload_meta)
+    source_mode, project_path, goals, upload_meta, mongo_status = render_sidebar()
+    run_clicked = render_run_panel(source_mode, project_path, goals, upload_meta, mongo_status)
 
     if run_clicked:
         effective_path = None if source_mode == "synthetic" else project_path
@@ -48,7 +56,7 @@ def main() -> None:
             st.warning("Upload at least one project file or switch to synthetic HVAC data.")
             return
 
-        result = execute_pm_run(effective_path, goals, source_mode == "synthetic")
+        result = execute_pm_run(effective_path, goals, source_mode == "synthetic", mongo_status)
         if result:
             st.session_state["pm_result"] = result
             st.balloons()
@@ -86,10 +94,20 @@ def render_app_header() -> None:
     )
 
 
-def render_sidebar() -> tuple[str, str | None, list[str], dict[str, Any]]:
+def render_sidebar() -> tuple[str, str | None, list[str], dict[str, Any], dict[str, Any]]:
     with st.sidebar:
         st.markdown('<div class="sidebar-title">Project Setup</div>', unsafe_allow_html=True)
         st.caption("Choose a source, tune the goals, then run the PM orchestrator.")
+
+        st.markdown('<div class="sidebar-section">Live Mongo</div>', unsafe_allow_html=True)
+        live_mongo_enabled = st.toggle(
+            "Enable Live Mongo",
+            value=st.session_state.get("live_mongo_enabled", False),
+            help="When enabled and healthy, the dispatch run uses MongoDB-backed agents.",
+        )
+        st.session_state["live_mongo_enabled"] = live_mongo_enabled
+        mongo_status = check_live_mongo_status(live_mongo_enabled)
+        render_mongo_status(mongo_status)
 
         synthetic_clicked = st.button("Use Synthetic HVAC Data", width="stretch")
         if synthetic_clicked:
@@ -149,21 +167,53 @@ def render_sidebar() -> tuple[str, str | None, list[str], dict[str, Any]]:
         st.session_state["goals"] = goals or DEFAULT_GOALS
         st.caption(f"{len(st.session_state['goals'])} active goals")
 
-        return source_mode, project_path, st.session_state["goals"], upload_meta
+        return source_mode, project_path, st.session_state["goals"], upload_meta, mongo_status
 
 
-def render_run_panel(source_mode: str, project_path: str | None, goals: list[str], upload_meta: dict[str, Any]) -> bool:
+def check_live_mongo_status(enabled: bool) -> dict[str, Any]:
+    if not enabled:
+        return {
+            "enabled": False,
+            "connected": False,
+            "message": "Live Mongo is disabled. Synthetic fallback will be used.",
+        }
+
+    health = mongodb_tools.healthcheck()
+    return {
+        "enabled": True,
+        "connected": bool(health.get("ok")),
+        "message": str(health.get("message") or "MongoDB status unavailable."),
+    }
+
+
+def render_mongo_status(status: dict[str, Any]) -> None:
+    if not status["enabled"]:
+        st.info(status["message"])
+    elif status["connected"]:
+        st.success(status["message"])
+    else:
+        st.warning(f"{status['message']} Synthetic fallback will be used.")
+
+
+def render_run_panel(
+    source_mode: str,
+    project_path: str | None,
+    goals: list[str],
+    upload_meta: dict[str, Any],
+    mongo_status: dict[str, Any],
+) -> bool:
     st.markdown('<div class="section-kicker">Run Workspace</div>', unsafe_allow_html=True)
     left, right = st.columns([0.68, 0.32], vertical_alignment="center")
     with left:
         source_label = "Synthetic HVAC data" if source_mode == "synthetic" else f"{upload_meta.get('count', 0)} uploaded files"
+        data_path = "Live Mongo orchestrator" if mongo_status["connected"] else "Synthetic fallback"
         st.markdown(
             f"""
             <div class="run-card">
                 <div>
                     <span class="muted-label">Current analysis package</span>
                     <h3>{source_label}</h3>
-                    <p>{len(goals)} goals configured. The agents will extract requirements, rank risks,
+                    <p>{len(goals)} goals configured. Data path: {data_path}. The agents will extract requirements, rank risks,
                     optimize schedule tasks, and produce an executive summary.</p>
                 </div>
             </div>
@@ -173,27 +223,59 @@ def render_run_panel(source_mode: str, project_path: str | None, goals: list[str
     with right:
         disabled = source_mode == "upload" and not project_path
         return st.button(
-            "Run AgentForge PM",
+            "Run Multi-Agent Dispatch",
             type="primary",
             width="stretch",
             disabled=disabled,
         )
 
 
-def execute_pm_run(project_path: str | None, goals: list[str], synthetic_mode: bool) -> dict[str, Any] | None:
+def execute_pm_run(
+    project_path: str | None,
+    goals: list[str],
+    synthetic_mode: bool,
+    mongo_status: dict[str, Any],
+) -> dict[str, Any] | None:
+    use_live_mongo = bool(mongo_status["enabled"] and mongo_status["connected"])
     st.markdown('<div class="progress-shell">', unsafe_allow_html=True)
-    with st.status("Launching PM agent team...", expanded=True) as status:
-        progress = st.progress(0, text="Queued.")
-        try:
-            result = run_job_with_live_progress(project_path, goals, progress, status)
-            if synthetic_mode:
-                result = enforce_synthetic_baseline(result, goals)
-        except Exception as exc:
-            status.update(label="AgentForge PM failed.", state="error", expanded=True)
-            st.exception(exc)
-            st.markdown("</div>", unsafe_allow_html=True)
-            return None
-        status.update(label="AgentForge PM complete.", state="complete", expanded=False)
+    with st.spinner("Running multi-agent dispatch..."):
+        with st.status("Launching PM agent team...", expanded=True) as status:
+            progress = st.progress(0, text="Queued.")
+            try:
+                if use_live_mongo:
+                    result = run_job_with_live_progress(project_path, goals, progress, status)
+                    result["data_source"] = {
+                        "mode": "live_mongo",
+                        "label": "Live Mongo",
+                        "fallback": False,
+                        "message": "MongoDB preflight passed; real orchestrator data path used.",
+                    }
+                else:
+                    if mongo_status["enabled"]:
+                        reason = mongo_status["message"]
+                    elif synthetic_mode:
+                        reason = "Synthetic mode selected."
+                    else:
+                        reason = mongo_status["message"]
+                    result = build_synthetic_result(goals, reason)
+                    progress.progress(1.0, text="Synthetic HVAC baseline ready.")
+                    status.write("Done: Synthetic HVAC baseline ready.")
+            except PMRunError as exc:
+                status.write(f"Live run error: {exc}")
+                if exc.partial_result:
+                    with st.expander("Partial live result", expanded=False):
+                        st.json(exc.partial_result)
+                st.warning("Live Mongo run failed. Falling back to synthetic HVAC baseline.")
+                result = build_synthetic_result(goals, str(exc), partial_result=exc.partial_result)
+                result["agent_trace"] = exc.trace + result.get("agent_trace", [])
+                progress.progress(1.0, text="Synthetic fallback ready.")
+                status.write("Done: Synthetic fallback ready.")
+            except Exception as exc:
+                status.update(label="AgentForge PM failed.", state="error", expanded=True)
+                st.exception(exc)
+                st.markdown("</div>", unsafe_allow_html=True)
+                return None
+            status.update(label="AgentForge PM complete.", state="complete", expanded=False)
     st.markdown("</div>", unsafe_allow_html=True)
     st.toast("AgentForge PM report is ready.")
     return result
@@ -327,8 +409,49 @@ def build_demo_dataset() -> dict[str, list[dict[str, Any]]]:
     }
 
 
+def build_synthetic_result(
+    goals: list[str],
+    reason: str,
+    partial_result: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "execution_plan": [
+            {"agent": "inventory_forecaster", "task": "Build synthetic inventory and requirement baseline."},
+            {"agent": "risk_assessor", "task": "Rank synthetic delivery risks."},
+            {"agent": "scheduler", "task": "Create synthetic schedule baseline."},
+            {"agent": "ar_collector", "task": "Build synthetic AR follow-up queue."},
+        ],
+        "optimized_schedule": {
+            "method": "synthetic",
+            "duration_days": 47,
+            "critical_path": ["Requirements validation", "Procurement", "Installation", "Commissioning"],
+            "tasks": [
+                {"task": "Requirements validation", "start_day": 0, "finish_day": 5, "duration_days": 5},
+                {"task": "Procurement", "start_day": 5, "finish_day": 25, "duration_days": 20},
+                {"task": "Installation", "start_day": 25, "finish_day": 40, "duration_days": 15},
+                {"task": "Commissioning", "start_day": 40, "finish_day": 47, "duration_days": 7},
+            ],
+        },
+        "pm_report": {},
+        "agent_trace": [
+            "Synthetic fallback selected.",
+            "Synthetic requirements, risks, schedule, and AR queue generated.",
+        ],
+        "data_source": {
+            "mode": "synthetic",
+            "label": "Synthetic fallback",
+            "fallback": True,
+            "message": reason,
+        },
+    }
+    if partial_result:
+        result["partial_live_result"] = partial_result
+    return enforce_synthetic_baseline(result, goals)
+
+
 def run_job_with_live_progress(project_path: str | None, goals: list[str], progress: Any, status: Any) -> dict[str, Any]:
     job_id = f"streamlit-pm-{uuid4().hex[:10]}"
+    trace: list[str] = []
     jobs = {
         job_id: SimpleNamespace(
             job_id=job_id,
@@ -355,12 +478,19 @@ def run_job_with_live_progress(project_path: str | None, goals: list[str], progr
             progress.progress(min(float(job.progress), 1.0), text=detail)
             if detail != last_detail:
                 status.write(f"Done: {detail}")
+                trace.append(detail)
                 last_detail = detail
             await asyncio.sleep(0.35)
 
-        result = await task
         job = jobs[job_id]
+        try:
+            result = await task
+        except Exception as exc:
+            raise PMRunError(str(exc), partial_result=job.result, trace=trace) from exc
         progress.progress(min(float(job.progress), 1.0), text=job.details)
+        if job.details and job.details != last_detail:
+            trace.append(job.details)
+        result["agent_trace"] = trace
         return result
 
     return asyncio.run(runner())
@@ -498,6 +628,7 @@ def render_results(result: dict[str, Any]) -> None:
         ar_df,
         risk_chart_bytes,
     )
+    render_run_metadata(result)
 
     overview, requirements, risks, schedule, ar, summary = st.tabs(
         ["Overview", "Requirements", "Risks", "Schedule", "AR", "Summary"]
@@ -514,6 +645,26 @@ def render_results(result: dict[str, Any]) -> None:
         render_ar_tab(ar_df)
     with summary:
         render_summary_tab(report, result)
+
+
+def render_run_metadata(result: dict[str, Any]) -> None:
+    source = result.get("data_source", {})
+    if source:
+        if source.get("fallback"):
+            st.warning(f"Data source: {source.get('label', 'Synthetic fallback')}. {source.get('message', '')}")
+        else:
+            st.success(f"Data source: {source.get('label', 'Live Mongo')}. {source.get('message', '')}")
+
+    trace = result.get("agent_trace", [])
+    if trace:
+        with st.expander("Agent trace", expanded=False):
+            for detail in trace:
+                st.write(f"- {detail}")
+
+    partial = result.get("partial_live_result")
+    if partial:
+        with st.expander("Partial live result captured before fallback", expanded=False):
+            st.json(partial)
 
 
 def render_success_banner(

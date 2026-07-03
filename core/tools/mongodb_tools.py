@@ -40,6 +40,18 @@ class MongoDBTools:
             self.client = None
             return None
 
+    def healthcheck(self) -> Dict[str, Any]:
+        """Return MongoDB connection health without raising to callers."""
+        try:
+            client = self.connect()
+            if not client:
+                return {"ok": False, "message": "MongoDB ping failed."}
+            client.admin.command("ping")
+            return {"ok": True, "message": "MongoDB connection is healthy."}
+        except Exception as exc:
+            self.client = None
+            return {"ok": False, "message": str(exc)}
+
     def get_upcoming_jobs(self, days: int = 14) -> List[Dict[str, Any]]:
         """Get jobs scheduled in the next N days with fallback to synthetic data."""
         try:
