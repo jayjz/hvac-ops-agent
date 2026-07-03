@@ -33,20 +33,22 @@ def test_registry_in_init_after_split():
 
 
 @patch("streamlit.title")
-@patch("streamlit.selectbox")
-@patch("streamlit.button")
+@patch("streamlit.checkbox")
+@patch("streamlit.dataframe")
 @patch("streamlit.success")
 @patch("streamlit.caption")
 def test_streamlit_parts_dashboard(
-    mock_caption, mock_success, mock_button, mock_selectbox, mock_title
+    mock_caption, mock_success, mock_dataframe, mock_checkbox, mock_title
 ):
-    """GREEN (Phase 3): Dashboard uses schemas, Mongo sync via agent, error handling, real orchestrator-compatible call, JTBD/Porter's metrics."""
+    """GREEN: Dashboard keeps the parts view callable with HVAC value metrics."""
     from streamlit_app import parts_availability_dashboard
 
     parts_availability_dashboard()
-    mock_title.assert_called_with("HVAC Parts Availability Command Center (Phase 3)")
-    mock_caption.assert_called()  # Business value caption with Porter's/JTBD
-    print("Dashboard GREEN: uses SPECIALISTS registry for dynamic agent execution.")
+    mock_title.assert_called_with("HVAC Parts Availability Command Center")
+    mock_checkbox.assert_called()
+    mock_dataframe.assert_called()
+    mock_caption.assert_called()
+    mock_success.assert_called()
 
 
 # Run with: python -m pytest this_file -q

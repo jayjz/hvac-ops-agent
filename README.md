@@ -1,105 +1,149 @@
-# HVAC OpsForge Agent
+# HVAC OpsForge
 
-**Gemini + MongoDB Powered Autonomous Operations Agent for HVAC & Small Trades Businesses**
+**Autonomous AI Operations Co-Pilot for HVAC & Trade Services**
 
-**Google Cloud Rapid Agent Hackathon 2026** — MongoDB Track Submission
+HVAC OpsForge is a multi-agent operations dashboard for small HVAC and trade service businesses. It shows how a Lead Architect agent can coordinate specialist agents for parts availability, dispatch risk, inventory planning, accounts receivable follow-up, and owner-facing operational decisions.
+
+Built for the **Google Cloud Rapid Agent Hackathon 2026** MongoDB track.
+
+---
+
+## Phase 1 Demo
+
+The Streamlit dashboard is designed to run immediately with synthetic HVAC data, so reviewers can see the product flow without connecting MongoDB first.
+
+1. Load a demo HVAC company.
+2. Run the multi-agent dispatch simulation.
+3. Explore the owner ROI metrics, agent trace, dispatch board, inventory watchlist, and AR queue.
+4. Use the same app shell later with live MongoDB-backed workflows.
+
+Recommended screenshot/GIF captures:
+
+- Hero dashboard with the HVAC OpsForge brand and KPI row.
+- Sidebar flow: `Load Demo Company` then `Run Multi-Agent Dispatch`.
+- Agent Command Center after the run completes.
+- Dispatch, Inventory, and AR tabs with synthetic data.
 
 ---
 
 ## Elevator Pitch
-An intelligent multi-agent system that autonomously handles core operations for small HVAC and service businesses: **inventory forecasting, job scheduling, accounts receivable follow-ups, and parts ordering** — turning chaotic operations into streamlined, proactive workflows.
 
-Built with **Google Cloud Agent Builder + Gemini 2.5** and powered by **MongoDB MCP** for persistent memory and real-time data actions.
-
----
-
-## The Problem (Real-World HVAC Pain)
-From 10+ years running HVAC operations:
-- Technicians show up to jobs with wrong/missing parts
-- Cash flow suffers from slow AR follow-ups
-- Manual scheduling leads to inefficient routes and overtime
-- Owners spend nights in spreadsheets instead of growing the business
-
-**HVAC OpsForge Agent** solves this by acting as a proactive Operations Co-Pilot.
+Small HVAC operators lose margin when technicians arrive without the right parts, routes are planned manually, invoices age without follow-up, and owners spend nights reconciling spreadsheets. HVAC OpsForge turns that chaos into a proactive operations cockpit: the Lead Architect plans the work, specialists inspect the operational risks, and the owner gets clear recommendations before the truck rolls.
 
 ---
 
-## Key Features (What the Agent Actually Does)
+## What The Agent Does
 
-- **Inventory Forecasting & Reordering** — Predicts part needs based on upcoming jobs and historical usage
-- **Smart Job Scheduling** — Optimizes technician assignments considering skills, location, and urgency
-- **Automated AR Follow-ups** — Identifies overdue invoices and drafts professional reminders
-- **Parts Ordering Assistant** — Checks stock, finds suppliers, and prepares purchase orders
-- **Risk & Opportunity Detection** — Flags potential issues (low stock, delayed payments, scheduling conflicts)
+- **Inventory Forecasting and Reordering**: predicts part needs from upcoming jobs and historical usage.
+- **Parts Availability Checking**: flags low-stock and job-critical parts before dispatch.
+- **Smart Scheduling**: prioritizes jobs by urgency, location, and operational risk.
+- **Automated AR Follow-up**: identifies overdue invoices and prepares next actions.
+- **Risk Detection**: surfaces downtime, cashflow, and first-visit-completion risk.
 
-The agent doesn't just chat — it **plans, executes tools, updates MongoDB, and keeps humans in the loop** for final approval.
-
----
-
-## Tech Stack
-
-- **Core Reasoning**: Google Gemini via Cloud Agent Builder
-- **Memory & State**: MongoDB Atlas + Model Context Protocol (MCP)
-- **Agent Architecture**: Multi-agent orchestrator (Lead Architect + Specialist Agents)
-- **Frontend**: Streamlit dashboard
-- **Backend**: FastAPI + Python
-- **Deployment**: Docker + Google Cloud Run (recommended)
+The agent is not positioned as a generic chatbot. It plans, coordinates specialist agents, prepares operational actions, and keeps humans in the loop for approval.
 
 ---
 
 ## Architecture
 
-1. **Lead Architect Agent** — Receives high-level goals and creates execution plans
-2. **Specialist Agents**:
-   - InventoryForecaster
-   - SchedulerOptimizer
-   - ARCollector
-   - PartsOrderer
-   - RiskAssessor
-3. **Tool Integration** via MongoDB MCP (read/write jobs, inventory, customers)
-4. **Human-in-the-Loop** approval system for all actions
+1. **LeadArchitect** coordinates the workflow and maintains the execution plan.
+2. **Specialist agents** handle inventory, parts availability, scheduling, AR, and risk.
+3. **MongoDB** provides persistent operational state for jobs, inventory, customers, and memory.
+4. **FastAPI** exposes backend services.
+5. **Streamlit** provides the primary demo dashboard.
+6. **Docker Compose** runs MongoDB, Redis, API, and static web services for local integration.
 
 ---
 
-## Hackathon Submission Details
+## Tech Stack
 
-**Track**: MongoDB  
-**Goal**: Demonstrate a functional agent that uses Gemini reasoning + MongoDB MCP to solve real operational challenges in the trades industry.
-
-**Live Demo**: (Will be added after deployment)  
-**Video Demo**: (Will be recorded)
+- Backend: FastAPI, Python
+- Frontend: Streamlit
+- Database: MongoDB
+- Agent architecture: Lead Architect plus specialist agents
+- Containers: Docker and Docker Compose
+- Testing: pytest, pytest-asyncio, mypy, ruff
 
 ---
 
-## Quick Start (Local Development)
+## Quick Start
 
-# 1. Clone
+```bash
 git clone https://github.com/jayjz/hvac-ops-agent.git
 cd hvac-ops-agent
+python -m venv venv
+```
 
-# 2. Environment
-python3 -m venv venv
+On macOS/Linux:
+
+```bash
 source venv/bin/activate
 pip install -r requirements.txt
-
-# 3. Environment variables
-cp .env.example .env
-# Add your Gemini API key + MongoDB Atlas connection string
-
-# 4. Run
 streamlit run streamlit_app.py
+```
 
-# Project Status (June 2026)
+On Windows PowerShell:
 
-Multi-agent orchestration framework ported and pivoted
-MongoDB MCP integration in progress
-Sample HVAC dataset included
-Working towards full end-to-end flows for hackathon deadline
+```powershell
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
 
+Then open the local Streamlit URL, click `Load Demo Company`, and click `Run Multi-Agent Dispatch`.
 
-# Why This Matters
-This isn't another generic AI demo. It's built by someone who has actually run HVAC operations for over a decade. The goal is practical impact for thousands of small service businesses.
-Future Vision: Turn this into a commercial AI Operations Co-Pilot SaaS for trades companies.
+---
 
-# Made for the Google Cloud Rapid Agent Hackathon 2026
-License: MIT
+## Environment
+
+The Phase 1 dashboard runs without external services by default. For live integrations, create a `.env` file with the required API keys and MongoDB connection settings used by your deployment.
+
+```bash
+cp .env.example .env
+```
+
+If `.env.example` is not present in your checkout yet, create `.env` manually and provide the variables required by your MongoDB and model-provider setup.
+
+---
+
+## Docker
+
+Run the integration stack locally:
+
+```bash
+docker compose up --build
+```
+
+Services defined in `docker-compose.yml` include MongoDB, Redis, the FastAPI service, and Nginx for static assets. The Streamlit dashboard remains the primary Phase 1 demo surface and can be run directly with:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+---
+
+## Testing
+
+Run the focused dashboard tests:
+
+```bash
+python -m pytest tests/test_dashboard_toggle.py tests/test_specialists_split_and_streamlit.py -q
+```
+
+Run the full suite:
+
+```bash
+python -m pytest -q
+```
+
+---
+
+## Project Status
+
+Phase 1 focuses on demo excellence for the Streamlit experience: branded layout, synthetic data, a clear multi-agent run flow, and owner-facing operational outputs. Live MongoDB flows, advanced approvals, richer charts, and static web cleanup are planned as follow-up work.
+
+---
+
+## License
+
+MIT
