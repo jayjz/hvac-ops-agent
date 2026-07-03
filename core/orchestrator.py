@@ -8,6 +8,7 @@ from typing import Any, Dict, List, MutableMapping, Optional
 
 from core.agents import (
     AgentContext,
+    AgentResult,
     LeadArchitect,
     ARCollectorAgent,
     InventoryForecasterAgent,
@@ -76,53 +77,135 @@ async def run_pm_job(
 
         project_data = architect_result.data["project_data"]
         execution_plan = architect_result.data["execution_plan"]
+        specialist_errors: List[Dict[str, Any]] = []
+
+        async def run_specialist(
+            agent,
+            payload: Dict[str, Any],
+            fallback_data: Dict[str, Any],
+        ) -> AgentResult:
+            try:
+                result = await agent.run(context, payload)
+            except Exception as exc:
+                logger.exception("Specialist %s raised unexpectedly", agent.name)
+                result = AgentResult(agent=agent.name, success=False, errors=[str(exc)])
+            if result.success:
+                return result
+            errors = result.errors or [f"{agent.name} failed without details."]
+            logger.error(
+                "Specialist %s failed; continuing with fallback data: %s",
+                agent.name,
+                errors,
+            )
+            specialist_errors.append({"agent": agent.name, "errors": errors})
+            return AgentResult(
+                agent=agent.name,
+                success=False,
+                data=fallback_data,
+                errors=errors,
+                warnings=["Fallback data used so the demo workflow could continue."],
+            )
 
         # Step 1: Inventory forecasting with MongoDB integration
         inventory = InventoryForecasterAgent(**base_common, progress_callback=scoped_progress(0.20, 0.40))
-        inventory_result = await inventory.run(context, {
-            "project_data": project_data, 
-            "execution_plan": execution_plan,
-            "mongodb": mongodb_tools
-        })
-        if not inventory_result.success:
-            raise RuntimeError("; ".join(inventory_result.errors))
+        inventory_result = await run_specialist(
+            inventory,
+            {
+                "project_data": project_data,
+                "execution_plan": execution_plan,
+                "mongodb": mongodb_tools,
+            },
+            {
+                "requirements_register": [],
+                "inventory_forecast": {},
+                "recommended_orders": [],
+                "upcoming_jobs_count": 0,
+                "low_stock_items": 0,
+            },
+        )
 
         # Step 2: Risk assessment using MongoDB data
         risk = RiskAssessorAgent(**base_common, progress_callback=scoped_progress(0.40, 0.60))
-        risk_result = await risk.run(context, {
-            **inventory_result.data, 
-            "project_data": project_data,
-            "mongodb": mongodb_tools
-        })
-        if not risk_result.success:
-            raise RuntimeError("; ".join(risk_result.errors))
+        risk_result = await run_specialist(
+            risk,
+            {
+                **inventory_result.data,
+                "project_data": project_data,
+                "mongodb": mongodb_tools,
+            },
+            {"risk_register": []},
+        )
 
         # Step 3: Schedule optimization with technician data from MongoDB
         scheduler = SchedulerOptimizerAgent(**base_common, progress_callback=scoped_progress(0.60, 0.75))
-        schedule_result = await scheduler.run(context, {
-            **inventory_result.data, 
-            **risk_result.data, 
-            "project_data": project_data,
-            "mongodb": mongodb_tools
-        })
-        if not schedule_result.success:
-            raise RuntimeError("; ".join(schedule_result.errors))
+        schedule_result = await run_specialist(
+            scheduler,
+            {
+                **inventory_result.data,
+                **risk_result.data,
+                "project_data": project_data,
+                "mongodb": mongodb_tools,
+            },
+            {
+                "optimized_schedule": {
+                    "method": "fallback",
+                    "duration_days": None,
+                    "tasks": [],
+                    "critical_path": [],
+                }
+            },
+        )
 
         # Step 4: AR collection using MongoDB invoices
         ar_collector = ARCollectorAgent(**base_common, progress_callback=scoped_progress(0.75, 0.90))
-        ar_result = await ar_collector.run(context, {
-            **inventory_result.data, 
-            **risk_result.data, 
-            **schedule_result.data,
-            "mongodb": mongodb_tools
-        })
-        if not ar_result.success:
-            raise RuntimeError("; ".join(ar_result.errors))
+        ar_result = await run_specialist(
+            ar_collector,
+            {
+                **inventory_result.data,
+                **risk_result.data,
+                **schedule_result.data,
+                "mongodb": mongodb_tools,
+            },
+            {
+                "pm_report": {
+                    "summary": "AR collector unavailable; workflow continued with remaining specialist outputs.",
+                    "requirements_count": len(
+                        inventory_result.data.get("requirements_register", [])
+                    ),
+                    "high_risk_count": len(
+                        [
+                            risk
+                            for risk in risk_result.data.get("risk_register", [])
+                            if risk.get("severity") == "High"
+                        ]
+                    ),
+                    "planned_duration_days": schedule_result.data.get(
+                        "optimized_schedule", {}
+                    ).get("duration_days"),
+                    "critical_path": schedule_result.data.get(
+                        "optimized_schedule", {}
+                    ).get("critical_path", []),
+                    "ar_summary": {
+                        "overdue_count": 0,
+                        "total_amount": 0,
+                        "oldest_invoice_days": 0,
+                    },
+                    "recommended_actions": [
+                        "Review AR collector logs before sending invoice reminders."
+                    ],
+                    "risk_chart_path": None,
+                },
+                "overdue_invoices": [],
+                "total_overdue_amount": 0,
+                "invoices_count": 0,
+            },
+        )
 
         # Compile all results
         result = {
             "execution_plan": execution_plan,
             "requires_approval": require_approval,
+            "specialist_errors": specialist_errors,
             "proposed_actions": {
                 "inventory_orders": inventory_result.data.get("recommended_orders", []),
                 "ar_reminders": ar_result.data.get("overdue_invoices", []),
