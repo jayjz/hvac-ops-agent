@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import csv
 import json
 from datetime import date, datetime, time, timezone
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from xml.sax.saxutils import escape
 from uuid import uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from core.agents import (
     ARCollectorAgent,
@@ -26,6 +30,42 @@ PORTER_FORCES = [
     "Competitive rivalry",
     "Threat of substitutes",
     "Threat of new entrants",
+]
+
+QUICKBOOKS_INVOICE_FIELDS = [
+    "Customer",
+    "Invoice No",
+    "Invoice Date",
+    "Due Date",
+    "Terms",
+    "Product/Service",
+    "Description",
+    "Qty",
+    "Rate",
+    "Amount",
+    "Memo",
+]
+QUICKBOOKS_SCHEDULE_FIELDS = [
+    "Customer",
+    "Service Date",
+    "Product/Service",
+    "Description",
+    "Qty",
+    "Rate",
+    "Amount",
+    "Class",
+    "Memo",
+]
+QUICKBOOKS_PART_FIELDS = [
+    "Name",
+    "SKU",
+    "Type",
+    "Sales Price / Rate",
+    "Cost",
+    "Quantity On Hand",
+    "Reorder Point",
+    "Preferred Vendor",
+    "Description",
 ]
 
 
@@ -141,6 +181,7 @@ def assemble_dispatch_baseline(
         ar_items=ar_data.get("overdue_invoices", []),
     )
     ar_queue = prioritize_ar_queue(ar_data.get("overdue_invoices", []))
+    parts_queue = build_quickbooks_parts_queue(inventory_data.get("recommended_orders", []), requirements)
     roi_summary = build_roi_summary(
         requirements=requirements,
         risks=risks,
@@ -167,6 +208,7 @@ def assemble_dispatch_baseline(
         "risk_register": risks,
         "optimized_schedule": schedule,
         "ar_follow_up_queue": ar_queue,
+        "parts_order_queue": parts_queue,
         "roi_summary": roi_summary,
         "recommended_actions": actions,
         "execution_plan": execution_plan,
@@ -365,6 +407,8 @@ def prioritize_ar_queue(invoices: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "invoice_id": str(invoice_id),
                 "customer": invoice.get("customer_name") or invoice.get("customer_id") or "Customer",
                 "amount": round(amount, 2),
+                "invoice_date": _format_qb_date(invoice.get("invoice_date")),
+                "due_date": _format_qb_date(invoice.get("due_date")),
                 "days_overdue": days_overdue,
                 "priority": priority,
                 "priority_score": round(priority_score, 1),
@@ -375,6 +419,50 @@ def prioritize_ar_queue(invoices: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for idx, row in enumerate(ranked, start=1):
         row["rank"] = idx
     return ranked
+
+
+def build_quickbooks_parts_queue(
+    recommended_orders: List[Dict[str, Any]],
+    requirements: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Normalize recommended parts/orders into QuickBooks-friendly item rows."""
+
+    rows: List[Dict[str, Any]] = []
+    for idx, order in enumerate(recommended_orders, start=1):
+        sku = str(order.get("sku") or f"PART-{idx:03d}")
+        quantity = _safe_float(order.get("quantity") or order.get("suggested_quantity"), 1)
+        rows.append(
+            {
+                "sku": sku,
+                "name": str(order.get("part_name") or order.get("name") or sku),
+                "quantity": quantity,
+                "urgency": str(order.get("urgency") or order.get("priority") or "medium"),
+                "description": str(order.get("reason") or "Recommended by Dispatch Baseline."),
+                "preferred_vendor": str(order.get("vendor") or order.get("preferred_vendor") or ""),
+                "cost": round(_safe_float(order.get("estimated_cost") or order.get("cost"), 0), 2),
+                "reorder_point": int(_safe_float(order.get("reorder_point"), 0)),
+            }
+        )
+
+    if rows:
+        return rows
+
+    for idx, requirement in enumerate(requirements, start=1):
+        if str(requirement.get("domain", "")).lower() != "inventory":
+            continue
+        rows.append(
+            {
+                "sku": f"REQ-PART-{idx:03d}",
+                "name": str(requirement.get("requirement") or f"Required part {idx}")[:80],
+                "quantity": 1,
+                "urgency": str(requirement.get("priority") or "medium").lower(),
+                "description": str(requirement.get("job_to_be_done") or "Inventory requirement from baseline."),
+                "preferred_vendor": "",
+                "cost": 0,
+                "reorder_point": 0,
+            }
+        )
+    return rows
 
 
 def build_roi_summary(
@@ -499,6 +587,87 @@ def save_dispatch_baseline_reports(baseline: Dict[str, Any], output_dir: str | P
     return {"markdown": str(markdown_path), "json": str(json_path)}
 
 
+def build_quickbooks_export_tables(baseline: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    """Map Dispatch Baseline data into QuickBooks-compatible import tables."""
+
+    return {
+        "invoices": [_quickbooks_invoice_row(item) for item in baseline.get("ar_follow_up_queue", [])],
+        "schedule": [_quickbooks_schedule_row(item) for item in baseline.get("optimized_schedule", {}).get("tasks", [])],
+        "parts": [_quickbooks_part_row(item) for item in baseline.get("parts_order_queue", [])],
+    }
+
+
+def render_quickbooks_csv_exports(baseline: Dict[str, Any]) -> Dict[str, str]:
+    """Render QuickBooks-compatible CSV text for invoices, schedule, and parts."""
+
+    tables = build_quickbooks_export_tables(baseline)
+    return {
+        "quickbooks_invoices.csv": _rows_to_csv(tables["invoices"], QUICKBOOKS_INVOICE_FIELDS),
+        "quickbooks_schedule.csv": _rows_to_csv(tables["schedule"], QUICKBOOKS_SCHEDULE_FIELDS),
+        "quickbooks_parts.csv": _rows_to_csv(tables["parts"], QUICKBOOKS_PART_FIELDS),
+    }
+
+
+def render_quickbooks_excel_export(baseline: Dict[str, Any]) -> bytes:
+    """Render a workbook with QuickBooks-compatible sheets for invoices, schedule, and parts."""
+
+    tables = build_quickbooks_export_tables(baseline)
+    try:
+        from openpyxl import Workbook
+    except ModuleNotFoundError:
+        return _render_basic_xlsx(
+            [
+                ("Invoices", tables["invoices"], QUICKBOOKS_INVOICE_FIELDS),
+                ("Schedule", tables["schedule"], QUICKBOOKS_SCHEDULE_FIELDS),
+                ("Parts", tables["parts"], QUICKBOOKS_PART_FIELDS),
+            ]
+        )
+
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    for sheet_name, rows, fields in [
+        ("Invoices", tables["invoices"], QUICKBOOKS_INVOICE_FIELDS),
+        ("Schedule", tables["schedule"], QUICKBOOKS_SCHEDULE_FIELDS),
+        ("Parts", tables["parts"], QUICKBOOKS_PART_FIELDS),
+    ]:
+        sheet = workbook.create_sheet(sheet_name)
+        sheet.append(fields)
+        for row in rows:
+            sheet.append([row.get(field, "") for field in fields])
+        for column_cells in sheet.columns:
+            width = max(len(str(cell.value or "")) for cell in column_cells)
+            sheet.column_dimensions[column_cells[0].column_letter].width = min(max(width + 2, 12), 42)
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def save_quickbooks_exports(
+    baseline: Dict[str, Any],
+    output_dir: str | Path,
+    *,
+    include_excel: bool = True,
+) -> Dict[str, str]:
+    """Write QuickBooks-compatible CSV files and an optional XLSX workbook."""
+
+    root = Path(output_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    paths: Dict[str, str] = {}
+
+    for filename, csv_text in render_quickbooks_csv_exports(baseline).items():
+        path = root / filename
+        path.write_text(csv_text, encoding="utf-8", newline="")
+        paths[filename] = str(path)
+
+    if include_excel:
+        workbook_path = root / "quickbooks_dispatch_baseline.xlsx"
+        workbook_path.write_bytes(render_quickbooks_excel_export(baseline))
+        paths["quickbooks_dispatch_baseline.xlsx"] = str(workbook_path)
+
+    return paths
+
+
 def to_jsonable(value: Any, *, include_reports: bool = True) -> Any:
     """Convert datetimes and nested values to JSON-compatible objects."""
 
@@ -513,6 +682,172 @@ def to_jsonable(value: Any, *, include_reports: bool = True) -> Any:
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     return value
+
+
+def _quickbooks_invoice_row(item: Dict[str, Any]) -> Dict[str, Any]:
+    amount = round(_safe_float(item.get("amount"), 0), 2)
+    return {
+        "Customer": item.get("customer", "Customer"),
+        "Invoice No": item.get("invoice_id", ""),
+        "Invoice Date": item.get("invoice_date", ""),
+        "Due Date": item.get("due_date", ""),
+        "Terms": "Due on receipt" if int(_safe_float(item.get("days_overdue"), 0)) > 0 else "",
+        "Product/Service": "HVAC Service",
+        "Description": item.get("recommended_action") or "Dispatch Baseline AR follow-up",
+        "Qty": 1,
+        "Rate": amount,
+        "Amount": amount,
+        "Memo": f"{item.get('priority', '')} | {item.get('days_overdue', 0)} days overdue".strip(),
+    }
+
+
+def _quickbooks_schedule_row(item: Dict[str, Any]) -> Dict[str, Any]:
+    task = str(item.get("task") or item.get("name") or "Scheduled HVAC work")
+    duration = max(_safe_float(item.get("duration_days"), 1), 1)
+    return {
+        "Customer": item.get("customer") or item.get("customer_name") or "",
+        "Service Date": item.get("service_date") or f"Project day {int(_safe_float(item.get('start_day'), 0))}",
+        "Product/Service": item.get("service_item") or "HVAC Service",
+        "Description": task,
+        "Qty": duration,
+        "Rate": "",
+        "Amount": "",
+        "Class": item.get("crew") or item.get("class") or "Dispatch",
+        "Memo": f"Finish day {int(_safe_float(item.get('finish_day'), 0))}",
+    }
+
+
+def _quickbooks_part_row(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "Name": item.get("name", item.get("sku", "Part")),
+        "SKU": item.get("sku", ""),
+        "Type": "Inventory",
+        "Sales Price / Rate": item.get("sales_price", ""),
+        "Cost": item.get("cost", ""),
+        "Quantity On Hand": item.get("quantity", ""),
+        "Reorder Point": item.get("reorder_point", ""),
+        "Preferred Vendor": item.get("preferred_vendor", ""),
+        "Description": item.get("description") or f"Urgency: {item.get('urgency', 'medium')}",
+    }
+
+
+def _rows_to_csv(rows: List[Dict[str, Any]], fields: List[str]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({field: row.get(field, "") for field in fields})
+    return output.getvalue()
+
+
+def _render_basic_xlsx(sheets: List[tuple[str, List[Dict[str, Any]], List[str]]]) -> bytes:
+    output = BytesIO()
+    with ZipFile(output, "w", ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+"""
+            + "".join(
+                f'<Override PartName="/xl/worksheets/sheet{idx}.xml" '
+                'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+                for idx, _sheet in enumerate(sheets, start=1)
+            )
+            + "</Types>",
+        )
+        archive.writestr(
+            "_rels/.rels",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>""",
+        )
+        archive.writestr(
+            "xl/_rels/workbook.xml.rels",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+"""
+            + "".join(
+                f'<Relationship Id="rId{idx}" '
+                'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+                f'Target="worksheets/sheet{idx}.xml"/>'
+                for idx, _sheet in enumerate(sheets, start=1)
+            )
+            + f'<Relationship Id="rId{len(sheets) + 1}" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" '
+            'Target="styles.xml"/></Relationships>',
+        )
+        archive.writestr(
+            "xl/workbook.xml",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>
+"""
+            + "".join(
+                f'<sheet name="{escape(name)}" sheetId="{idx}" r:id="rId{idx}"/>'
+                for idx, (name, _rows, _fields) in enumerate(sheets, start=1)
+            )
+            + "</sheets></workbook>",
+        )
+        archive.writestr(
+            "xl/styles.xml",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="1"><fill><patternFill patternType="none"/></fill></fills>
+<borders count="1"><border/></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+</styleSheet>""",
+        )
+        for idx, (_name, rows, fields) in enumerate(sheets, start=1):
+            archive.writestr(f"xl/worksheets/sheet{idx}.xml", _sheet_xml(rows, fields))
+    return output.getvalue()
+
+
+def _sheet_xml(rows: List[Dict[str, Any]], fields: List[str]) -> str:
+    all_rows = [fields] + [[row.get(field, "") for field in fields] for row in rows]
+    row_xml = []
+    for row_idx, row in enumerate(all_rows, start=1):
+        cells = []
+        for col_idx, value in enumerate(row, start=1):
+            ref = f"{_xlsx_column(col_idx)}{row_idx}"
+            cells.append(f'<c r="{ref}" t="inlineStr"><is><t>{escape(str(value))}</t></is></c>')
+        row_xml.append(f'<row r="{row_idx}">{"".join(cells)}</row>')
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f'<sheetData>{"".join(row_xml)}</sheetData></worksheet>'
+    )
+
+
+def _xlsx_column(index: int) -> str:
+    letters = ""
+    while index:
+        index, remainder = divmod(index - 1, 26)
+        letters = chr(65 + remainder) + letters
+    return letters
+
+
+def _format_qb_date(value: Any) -> str:
+    if value in (None, ""):
+        return ""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return ""
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00")).date().isoformat()
+        except ValueError:
+            return raw[:10]
+    return str(value)
 
 
 def _value_driver(domain: str) -> str:
