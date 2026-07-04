@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+import html
+import json
 from io import BytesIO
 import tempfile
 from pathlib import Path
@@ -750,11 +752,13 @@ def render_results(result: dict[str, Any]) -> None:
     )
     render_run_metadata(result)
 
-    overview, requirements, risks, schedule, ar, summary = st.tabs(
-        ["Overview", "Requirements", "Risks", "Schedule", "AR", "Summary"]
+    overview, technician, requirements, risks, schedule, ar, summary = st.tabs(
+        ["Overview", "Technician Dispatch", "Requirements", "Risks", "Schedule", "AR", "Summary"]
     )
     with overview:
         render_overview_tab(report, result, requirements_df, risks_df, schedule_df, risk_chart_bytes)
+    with technician:
+        render_technician_dispatch_tab(result)
     with requirements:
         render_requirements_tab(requirements_df)
     with risks:
@@ -784,13 +788,15 @@ def render_dispatch_baseline_section(result: dict[str, Any]) -> None:
         or baseline.get("reports", {}).get("json")
         or "{}"
     )
+    actions = baseline.get("recommended_actions", [])
+    baseline_zip = build_dispatch_baseline_download_zip(markdown_report, json_report)
 
     st.markdown(
         """
         <div class="dispatch-baseline-hero">
             <span>Hero Output</span>
             <strong>Dispatch Baseline</strong>
-            <p>Executive-ready operating baseline with ROI, risks, schedule, AR priority, and recommended actions.</p>
+            <p>Board-ready operating baseline with ROI, value capture, schedule exposure, AR opportunity, and next actions.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -798,37 +804,67 @@ def render_dispatch_baseline_section(result: dict[str, Any]) -> None:
 
     metric_cols = st.columns(4)
     metric_cols[0].metric("Estimated ROI", format_roi(roi.get("estimated_roi", summary.get("estimated_roi"))))
-    metric_cols[1].metric("Value", format_currency(roi.get("estimated_value")))
+    metric_cols[1].metric("Estimated Value", format_currency(roi.get("estimated_value")))
     metric_cols[2].metric("AR Opportunity", format_currency(summary.get("ar_recovery_opportunity")))
     metric_cols[3].metric("Planned Days", summary.get("planned_duration_days", "n/a"))
 
-    preview_col, action_col = st.columns([0.68, 0.32], vertical_alignment="top")
+    preview_col, action_col = st.columns([0.62, 0.38], vertical_alignment="top")
     with preview_col:
-        with st.expander("Markdown preview", expanded=True):
+        st.markdown('<div class="baseline-panel-title">Executive Markdown Preview</div>', unsafe_allow_html=True)
+        with st.container(border=True):
             st.markdown(markdown_report)
     with action_col:
-        st.markdown('<div class="export-title">Baseline downloads</div>', unsafe_allow_html=True)
-        icon_download_button(
-            "Download Baseline MD",
-            ":material/article:",
-            data=markdown_report.encode("utf-8"),
-            file_name="hvac_opsforge_dispatch_baseline.md",
-            mime="text/markdown",
-            width="stretch",
-        )
-        icon_download_button(
-            "Download Baseline JSON",
-            ":material/data_object:",
-            data=json_report.encode("utf-8"),
-            file_name="hvac_opsforge_dispatch_baseline.json",
-            mime="application/json",
-            width="stretch",
-        )
-        actions = baseline.get("recommended_actions", [])
+        st.markdown('<div class="baseline-panel-title">Recommended Actions</div>', unsafe_allow_html=True)
         if actions:
-            st.markdown("**Next actions**")
-            for action in actions[:3]:
-                st.write(f"- {action}")
+            for idx, action in enumerate(actions[:4], start=1):
+                st.markdown(
+                    f"""
+                    <div class="baseline-action">
+                        <span>{idx}</span>
+                        <strong>{html.escape(str(action))}</strong>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.info("No baseline actions were returned.")
+
+        st.markdown('<div class="baseline-panel-title">One-Click Downloads</div>', unsafe_allow_html=True)
+        icon_download_button(
+            "Baseline ZIP",
+            ":material/archive:",
+            data=baseline_zip,
+            file_name="hvac_opsforge_dispatch_baseline.zip",
+            mime="application/zip",
+            width="stretch",
+        )
+        download_cols = st.columns(2)
+        with download_cols[0]:
+            icon_download_button(
+                "Markdown",
+                ":material/article:",
+                data=markdown_report.encode("utf-8"),
+                file_name="hvac_opsforge_dispatch_baseline.md",
+                mime="text/markdown",
+                width="stretch",
+            )
+        with download_cols[1]:
+            icon_download_button(
+                "JSON",
+                ":material/data_object:",
+                data=json_report.encode("utf-8"),
+                file_name="hvac_opsforge_dispatch_baseline.json",
+                mime="application/json",
+                width="stretch",
+            )
+
+
+def build_dispatch_baseline_download_zip(markdown_report: str, json_report: str) -> bytes:
+    output = BytesIO()
+    with ZipFile(output, "w", ZIP_DEFLATED) as archive:
+        archive.writestr("dispatch_baseline.md", markdown_report)
+        archive.writestr("dispatch_baseline.json", json_report)
+    return output.getvalue()
 
 
 def render_run_metadata(result: dict[str, Any]) -> None:
@@ -995,6 +1031,319 @@ def render_schedule_tab(schedule_df: pd.DataFrame) -> None:
     st.pyplot(build_gantt_figure(schedule_df), width="stretch")
     st.dataframe(schedule_df, hide_index=True, width="stretch")
     download_csv("Download Schedule CSV", schedule_df, "agentforge_schedule.csv")
+
+
+def render_technician_dispatch_tab(result: dict[str, Any]) -> None:
+    payload = build_technician_dispatch_payload(json.dumps(to_streamlit_jsonable(result), sort_keys=True))
+    jobs = payload.get("jobs", [])
+    parts = payload.get("parts_checklist", [])
+    risks = payload.get("risks", [])
+    route = payload.get("optimized_route", [])
+
+    st.markdown(
+        """
+        <div class="technician-hero">
+            <span>Field Mode</span>
+            <strong>Technician Dispatch</strong>
+            <p>Today's work, parts readiness, risks, and route sequence in a phone-first view for field execution.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if not jobs:
+        st.info("No dispatch jobs are available yet. Run a dispatch baseline to generate the field view.")
+        return
+
+    stats = payload.get("stats", {})
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Jobs", stats.get("jobs", len(jobs)))
+    metric_cols[1].metric("Route Stops", stats.get("route_stops", len(route)))
+    metric_cols[2].metric("Parts Ready", f"{parts_ready_count(parts)}/{len(parts)}")
+    metric_cols[3].metric("High Risks", stats.get("high_risks", 0))
+
+    job_col, field_col = st.columns([0.58, 0.42], gap="large")
+    with job_col:
+        st.markdown('<div class="panel-title">Job List</div>', unsafe_allow_html=True)
+        for job in jobs:
+            render_technician_job_card(job)
+
+    with field_col:
+        st.markdown('<div class="panel-title">Parts Checklist</div>', unsafe_allow_html=True)
+        render_parts_checklist(parts)
+
+        st.markdown('<div class="panel-title">Optimized Route</div>', unsafe_allow_html=True)
+        render_route_steps(route)
+
+        st.markdown('<div class="panel-title">Field Risks</div>', unsafe_allow_html=True)
+        render_field_risks(risks)
+
+        export_payload = build_technician_export_payload(payload)
+        icon_download_button(
+            "Export Offline JSON",
+            ":material/download_for_offline:",
+            data=json.dumps(export_payload, indent=2, sort_keys=True).encode("utf-8"),
+            file_name="hvac_opsforge_technician_dispatch.json",
+            mime="application/json",
+            width="stretch",
+        )
+
+
+@st.cache_data(show_spinner=False)
+def build_technician_dispatch_payload(result_json: str) -> dict[str, Any]:
+    result = json.loads(result_json)
+    baseline = result.get("dispatch_baseline") or {}
+    schedule = baseline.get("optimized_schedule") or result.get("optimized_schedule") or {}
+    tasks = schedule.get("tasks") or []
+    risks = baseline.get("risk_register") or result.get("risk_register") or []
+    requirements = baseline.get("requirements_register") or result.get("requirements_register") or []
+
+    jobs = build_technician_jobs(tasks, risks)
+    parts = build_parts_checklist(jobs, requirements)
+    route = build_optimized_route(jobs)
+    high_risks = sum(1 for risk in risks if str(risk.get("severity", "")).lower() == "high")
+
+    return {
+        "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "mode": "offline_ready",
+        "job_to_be_done": (
+            "When a field tech starts a route, they need the next job, required parts, known risks, "
+            "and proof-ready actions without depending on a live connection."
+        ),
+        "stats": {
+            "jobs": len(jobs),
+            "route_stops": len(route),
+            "parts": len(parts),
+            "high_risks": high_risks,
+        },
+        "jobs": jobs,
+        "parts_checklist": parts,
+        "risks": normalize_field_risks(risks),
+        "optimized_route": route,
+    }
+
+
+def build_technician_jobs(tasks: list[dict[str, Any]], risks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not tasks:
+        return []
+
+    top_risk = risks[0] if risks else {}
+    ordered = sorted(tasks, key=lambda item: safe_number(item.get("start_day"), 0))
+    sites = ["Main mechanical room", "Roof units", "Controls closet", "Tenant suite", "Loading dock"]
+    jobs = []
+    for idx, task in enumerate(ordered[:8], start=1):
+        title = str(task.get("task") or task.get("name") or f"Dispatch job {idx}")
+        duration = int(safe_number(task.get("duration_days"), 1))
+        priority = "P1" if idx == 1 or "commission" in title.lower() else "P2" if duration >= 10 else "P3"
+        jobs.append(
+            {
+                "job_id": f"JOB-{idx:03d}",
+                "sequence": idx,
+                "title": title,
+                "site": sites[(idx - 1) % len(sites)],
+                "status": "Ready" if idx == 1 else "Queued",
+                "priority": priority,
+                "eta": f"Day {int(safe_number(task.get('start_day'), idx - 1))}",
+                "duration_days": duration,
+                "route_stop": idx,
+                "primary_risk": top_risk.get("risk", "Access or parts readiness must be verified."),
+                "next_action": technician_next_action(title),
+                "proof_needed": "Photos, readings, parts used, and customer sign-off notes.",
+            }
+        )
+    return jobs
+
+
+def build_parts_checklist(jobs: list[dict[str, Any]], requirements: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    base_parts = [
+        ("Filter set", "MERV-13 filter set", "Truck stock", "Ready"),
+        ("Belt kit", "Matched belt kit", "Warehouse", "Verify"),
+        ("Condensate kit", "Trap, tubing, float switch", "Truck stock", "Ready"),
+        ("Controls sensor", "Temperature sensor and wiring kit", "Controls shelf", "Pull"),
+        ("Fasteners", "Anchors, screws, labels, and tags", "Truck stock", "Ready"),
+    ]
+    requirement_text = " ".join(
+        str(item.get("domain") or item.get("requirement") or item.get("statement") or "")
+        for item in requirements
+    ).lower()
+    if "procurement" in requirement_text or "equipment" in requirement_text:
+        base_parts.append(("Procurement packet", "Submittal, PO, and vendor ETA notes", "Office", "Verify"))
+
+    job_count = max(len(jobs), 1)
+    parts = []
+    for idx, (name, description, location, status) in enumerate(base_parts, start=1):
+        parts.append(
+            {
+                "part_id": f"PART-{idx:03d}",
+                "name": name,
+                "description": description,
+                "location": location,
+                "status": status,
+                "job_id": jobs[(idx - 1) % job_count]["job_id"] if jobs else "JOB-001",
+                "required_before_stop": min(idx, job_count),
+            }
+        )
+    return parts
+
+
+def build_optimized_route(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    route = [
+        {
+            "stop": 0,
+            "label": "Warehouse",
+            "objective": "Load checked parts and confirm offline packet.",
+            "eta": "Start",
+        }
+    ]
+    for job in jobs:
+        route.append(
+            {
+                "stop": job["route_stop"],
+                "label": job["site"],
+                "job_id": job["job_id"],
+                "objective": job["title"],
+                "eta": job["eta"],
+            }
+        )
+    return route
+
+
+def normalize_field_risks(risks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized = []
+    for idx, risk in enumerate(risks[:5], start=1):
+        normalized.append(
+            {
+                "rank": int(risk.get("rank") or idx),
+                "risk": str(risk.get("risk") or f"Risk {idx}"),
+                "severity": str(risk.get("severity") or "Medium"),
+                "mitigation": str(risk.get("mitigation") or "Confirm owner, access, parts, and escalation path before arrival."),
+            }
+        )
+    return normalized
+
+
+def render_technician_job_card(job: dict[str, Any]) -> None:
+    job_id = html.escape(str(job["job_id"]))
+    title = html.escape(str(job["title"]))
+    site = html.escape(str(job["site"]))
+    next_action = html.escape(str(job["next_action"]))
+    proof_needed = html.escape(str(job["proof_needed"]))
+    st.markdown(
+        f"""
+        <div class="tech-job-card">
+            <div class="tech-job-top">
+                <span>{job_id} - Stop {job['route_stop']}</span>
+                <strong>{html.escape(str(job['priority']))}</strong>
+            </div>
+            <h3>{title}</h3>
+            <p>{site} | {html.escape(str(job['eta']))} | {job['duration_days']}d | {html.escape(str(job['status']))}</p>
+            <div class="tech-action">{next_action}</div>
+            <small>Proof: {proof_needed}</small>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_parts_checklist(parts: list[dict[str, Any]]) -> None:
+    if not parts:
+        st.info("No parts checklist is available.")
+        return
+    for part in parts:
+        key = f"tech_part_ready_{part['part_id']}"
+        default_checked = part.get("status") == "Ready"
+        st.checkbox(
+            f"{part['name']} - {part['description']}",
+            value=st.session_state.get(key, default_checked),
+            key=key,
+            help=f"{part['location']} | Needed before stop {part['required_before_stop']} | {part['job_id']}",
+        )
+
+
+def render_route_steps(route: list[dict[str, Any]]) -> None:
+    if not route:
+        st.info("No optimized route is available.")
+        return
+    for stop in route:
+        label = html.escape(str(stop["label"]))
+        eta = html.escape(str(stop["eta"]))
+        objective = html.escape(str(stop["objective"]))
+        st.markdown(
+            f"""
+            <div class="route-step">
+                <span>{stop['stop']}</span>
+                <div><strong>{label}</strong><small>{eta} - {objective}</small></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def render_field_risks(risks: list[dict[str, Any]]) -> None:
+    if not risks:
+        st.info("No field risks are available.")
+        return
+    for risk in risks:
+        severity = risk.get("severity", "Medium")
+        if str(severity).lower() == "high":
+            st.error(f"{risk['risk']} - {risk['mitigation']}")
+        else:
+            st.warning(f"{risk['risk']} - {risk['mitigation']}")
+
+
+def build_technician_export_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    export_payload = dict(payload)
+    export_payload["parts_checklist"] = [
+        {
+            **part,
+            "checked": bool(st.session_state.get(f"tech_part_ready_{part['part_id']}", part.get("status") == "Ready")),
+        }
+        for part in payload.get("parts_checklist", [])
+    ]
+    export_payload["offline_instructions"] = [
+        "Save this JSON before leaving coverage.",
+        "Update checked parts before rolling to the first stop.",
+        "Record proof notes in the job system when connectivity returns.",
+    ]
+    return export_payload
+
+
+def parts_ready_count(parts: list[dict[str, Any]]) -> int:
+    return sum(
+        1
+        for part in parts
+        if bool(st.session_state.get(f"tech_part_ready_{part['part_id']}", part.get("status") == "Ready"))
+    )
+
+
+def technician_next_action(title: str) -> str:
+    text = title.lower()
+    if "procurement" in text:
+        return "Confirm staged material, vendor ETA, and substitute approval before dispatch."
+    if "commission" in text:
+        return "Capture readings, BAS trend evidence, and owner acceptance before closeout."
+    if "install" in text:
+        return "Verify access, lockout needs, and parts on truck before starting work."
+    if "requirement" in text:
+        return "Confirm scope, site constraints, and decision maker before work release."
+    return "Check parts, site access, risk note, and proof requirements before arrival."
+
+
+def safe_number(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def to_streamlit_jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): to_streamlit_jsonable(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [to_streamlit_jsonable(item) for item in value]
+    if isinstance(value, (datetime, date, Path)):
+        return value.isoformat() if isinstance(value, (datetime, date)) else str(value)
+    return value
 
 
 def render_ar_tab(ar_df: pd.DataFrame) -> None:
@@ -1245,7 +1594,7 @@ def inject_styles() -> None:
             margin: -0.35rem 0 0.65rem;
         }
 
-        .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero {
+        .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero, .technician-hero, .tech-job-card {
             border: 1px solid var(--border);
             background: var(--card);
             box-shadow: var(--shadow);
@@ -1539,6 +1888,155 @@ def inject_styles() -> None:
             line-height: 1.5;
         }
 
+        .baseline-panel-title {
+            color: #ffffff;
+            font-weight: 850;
+            margin: 0.2rem 0 0.55rem;
+        }
+
+        .baseline-action {
+            display: grid;
+            grid-template-columns: 2rem minmax(0, 1fr);
+            gap: 0.7rem;
+            align-items: start;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.045);
+            padding: 0.75rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .baseline-action span {
+            width: 2rem;
+            height: 2rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: rgba(32, 199, 179, 0.18);
+            border: 1px solid rgba(32, 199, 179, 0.34);
+            color: #96f2e7;
+            font-weight: 850;
+        }
+
+        .baseline-action strong {
+            color: #edf8fb;
+            line-height: 1.42;
+            font-size: 0.95rem;
+        }
+
+        .technician-hero {
+            border-radius: 8px;
+            padding: 1rem 1.15rem;
+            margin: 0.4rem 0 0.9rem;
+            background:
+                linear-gradient(135deg, rgba(150, 242, 231, 0.14), rgba(255, 214, 102, 0.10)),
+                var(--card);
+        }
+
+        .technician-hero span {
+            color: #96f2e7;
+            font-size: 0.78rem;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        .technician-hero strong {
+            display: block;
+            color: #ffffff;
+            font-size: clamp(1.45rem, 3vw, 2.1rem);
+            margin-top: 0.2rem;
+        }
+
+        .technician-hero p {
+            color: var(--muted);
+            margin: 0.3rem 0 0;
+            line-height: 1.5;
+        }
+
+        .tech-job-card {
+            border-radius: 8px;
+            padding: 0.95rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .tech-job-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .tech-job-top strong {
+            color: #10232f;
+            background: #ffd666;
+            border-radius: 999px;
+            padding: 0.18rem 0.55rem;
+            min-width: 2.4rem;
+            text-align: center;
+        }
+
+        .tech-job-card h3 {
+            color: #ffffff;
+            font-size: 1.05rem;
+            margin: 0.45rem 0 0.25rem;
+            line-height: 1.28;
+        }
+
+        .tech-job-card p, .tech-job-card small {
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .tech-action {
+            border-left: 3px solid #20c7b3;
+            padding: 0.55rem 0.7rem;
+            margin: 0.7rem 0 0.45rem;
+            background: rgba(32, 199, 179, 0.08);
+            border-radius: 0 8px 8px 0;
+            color: #edf8fb;
+            font-weight: 750;
+        }
+
+        .route-step {
+            display: grid;
+            grid-template-columns: 2rem minmax(0, 1fr);
+            gap: 0.65rem;
+            align-items: start;
+            margin-bottom: 0.6rem;
+        }
+
+        .route-step > span {
+            width: 2rem;
+            height: 2rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.18);
+            border: 1px solid rgba(140, 200, 255, 0.28);
+            color: #edf8fb;
+            font-weight: 850;
+        }
+
+        .route-step strong, .route-step small {
+            display: block;
+        }
+
+        .route-step strong {
+            color: #ffffff;
+            line-height: 1.2;
+        }
+
+        .route-step small {
+            color: var(--muted);
+            line-height: 1.35;
+            margin-top: 0.15rem;
+        }
+
         .export-title {
             color: #ffffff;
             font-weight: 800;
@@ -1616,9 +2114,9 @@ def inject_styles() -> None:
 
             .app-hero h1, .empty-state h2, .preview-card h3, .run-card h3,
             .mini-stat strong, .empty-metrics strong, .success-banner strong,
-            .dispatch-baseline-hero strong,
+            .dispatch-baseline-hero strong, .technician-hero strong, .tech-job-card h3,
             .section-kicker, .panel-title, .sidebar-title, .sidebar-section,
-            .export-title {
+            .export-title, .route-step strong, .baseline-panel-title, .baseline-action strong {
                 color: #10232f;
             }
 
@@ -1643,7 +2141,7 @@ def inject_styles() -> None:
                 padding: 0.75rem 0.75rem 2rem;
             }
 
-            .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero {
+            .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero, .technician-hero, .tech-job-card {
                 padding: 0.95rem;
             }
 

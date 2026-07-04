@@ -33,6 +33,17 @@ Then open the local Streamlit URL and run:
 4. Click **Run Multi-Agent Dispatch**.
 5. Review the agent trace, requirements, risks, schedule, AR queue, and exports.
 
+## Technician Dispatch Mobile View
+
+After a run completes, open the **Technician Dispatch** tab for a field-ready mobile workflow:
+
+1. Review the prioritized job list with stop order, status, ETA, site, next action, and proof requirements.
+2. Check off staged parts in the parts checklist before the technician rolls.
+3. Review field risks and mitigations beside the optimized route.
+4. Click **Export Offline JSON** to download `hvac_opsforge_technician_dispatch.json` for use when connectivity is unreliable.
+
+Example field workflow: a dispatcher runs the synthetic demo in the office, opens **Technician Dispatch** on a phone or tablet, confirms the filter set, belt kit, controls sensor, and fasteners are staged, then exports the offline JSON before sending the tech to the first route stop.
+
 ## Live Mongo Mode
 
 Live Mongo is optional. The dashboard always shows connection status in the sidebar and falls back to synthetic data if MongoDB is disabled or unavailable.
