@@ -20,11 +20,19 @@ class LeadArchitect(BaseAgent):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="lead_architect", **kwargs)
         load_dotenv()
-        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None
+        self.client = (
+            AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            if os.getenv("OPENAI_API_KEY")
+            else None
+        )
 
-    async def execute(self, context: AgentContext, payload: Dict[str, Any]) -> AgentResult:
+    async def execute(
+        self, context: AgentContext, payload: Dict[str, Any]
+    ) -> AgentResult:
         await self.report_progress(context, 0.15, "Ingesting project artifacts.")
-        project_data = await asyncio.to_thread(self._ingest_project, context.project_path)
+        project_data = await asyncio.to_thread(
+            self._ingest_project, context.project_path
+        )
 
         await self.report_progress(context, 0.45, "Building PM execution plan.")
         plan = await self._create_plan(project_data, context.goals)
@@ -109,15 +117,33 @@ class LeadArchitect(BaseAgent):
                 }
             ],
             "schedule": [
-                {"task": "Requirements validation", "duration_days": 5, "predecessors": []},
-                {"task": "Equipment procurement", "duration_days": 25, "predecessors": ["Requirements validation"]},
-                {"task": "Installation", "duration_days": 15, "predecessors": ["Equipment procurement"]},
-                {"task": "Commissioning", "duration_days": 7, "predecessors": ["Installation"]},
+                {
+                    "task": "Requirements validation",
+                    "duration_days": 5,
+                    "predecessors": [],
+                },
+                {
+                    "task": "Equipment procurement",
+                    "duration_days": 25,
+                    "predecessors": ["Requirements validation"],
+                },
+                {
+                    "task": "Installation",
+                    "duration_days": 15,
+                    "predecessors": ["Equipment procurement"],
+                },
+                {
+                    "task": "Commissioning",
+                    "duration_days": 7,
+                    "predecessors": ["Installation"],
+                },
             ],
             "budget": {"labor": 85000, "materials": 210000, "contingency": 35000},
         }
 
-    async def _create_plan(self, project_data: Dict[str, Any], goals: List[str]) -> List[Dict[str, Any]]:
+    async def _create_plan(
+        self, project_data: Dict[str, Any], goals: List[str]
+    ) -> List[Dict[str, Any]]:
         if self.client is None:
             return self._fallback_plan(goals)
 
@@ -131,7 +157,9 @@ class LeadArchitect(BaseAgent):
         }
         user = {
             "role": "user",
-            "content": json.dumps({"goals": goals, "project_data": project_data}, default=str)[:30000],
+            "content": json.dumps(
+                {"goals": goals, "project_data": project_data}, default=str
+            )[:30000],
         }
         try:
             response = await self.client.chat.completions.create(
@@ -175,7 +203,11 @@ class LeadArchitect(BaseAgent):
                 "id": "RPT-001",
                 "specialist": "ar_collector",
                 "objective": "Generate AR collection actions and operations summary.",
-                "inputs": ["requirements_register", "risk_register", "optimized_schedule"],
+                "inputs": [
+                    "requirements_register",
+                    "risk_register",
+                    "optimized_schedule",
+                ],
                 "expected_output": "pm_report",
             },
         ]

@@ -7,55 +7,58 @@ from datetime import datetime, timedelta
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pytest
+
+from core.agents.specialists import InventoryForecasterAgent
 from core.tools.mongodb_tools import MongoDBTools
 
 
 def test_mongodb_connection():
     """Test basic MongoDB connectivity."""
     print("Testing MongoDB connection...")
-    
+
     # Initialize MongoDB tools
     mongo = MongoDBTools()
-    
+
     try:
         # Try to connect
         db = mongo.connect()
         print(f"✓ Connected to MongoDB database: {db.name}")
-        
+
         # List collections
         collections = db.list_collection_names()
         print(f"✓ Available collections: {collections}")
-        
+
         # Test queries (will return empty if no data, but should not error)
         print("\nTesting queries...")
-        
+
         jobs = mongo.get_upcoming_jobs(days_ahead=30)
         print(f"✓ Upcoming jobs query successful: {len(jobs)} jobs found")
-        
+
         inventory = mongo.get_inventory_levels(low_stock_threshold=10)
         print(f"✓ Inventory query successful: {len(inventory)} low-stock items found")
-        
+
         invoices = mongo.get_overdue_invoices(days_overdue=30)
         print(f"✓ Overdue invoices query successful: {len(invoices)} invoices found")
-        
+
         print("\n✅ All MongoDB tests passed!")
         print("\nNote: If collections are empty, populate with sample data using:")
         print("  - jobs: upcoming HVAC service calls")
         print("  - inventory: parts and stock levels")
         print("  - invoices: customer invoices with due dates")
         print("  - technicians: technician profiles and schedules")
-        
+
         return True
-        
+
     except Exception as exc:
         print(f"✗ MongoDB connection failed: {exc}")
         print("\nTo fix:")
         print("1. Ensure MongoDB is running (local or Atlas)")
         print("2. Set MONGO_URI environment variable if using Atlas:")
-        print("   export MONGO_URI='mongodb+srv://user:pass@cluster.mongodb.net/'")
+        print("   export MONGO_URI='mongodb+srv://user:***@cluster.mongodb.net/'")
         print("3. Or update core/tools/mongodb_tools.py with your connection string")
         return False
-        
+
     finally:
         mongo.disconnect()
         print("\n✓ Disconnected from MongoDB")
@@ -63,15 +66,15 @@ def test_mongodb_connection():
 
 def create_sample_data():
     """Create sample data for testing (optional)."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Creating sample data...")
-    print("="*60)
-    
+    print("=" * 60)
+
     mongo = MongoDBTools()
-    
+
     try:
         db = mongo.connect()
-        
+
         # Sample jobs
         jobs_collection = db["jobs"]
         if jobs_collection.count_documents({}) == 0:
@@ -103,7 +106,7 @@ def create_sample_data():
             print(f"✓ Inserted {len(sample_jobs)} sample jobs")
         else:
             print("✓ Jobs collection already has data")
-        
+
         # Sample inventory
         inventory_collection = db["inventory"]
         if inventory_collection.count_documents({}) == 0:
@@ -137,7 +140,7 @@ def create_sample_data():
             print(f"✓ Inserted {len(sample_inventory)} sample inventory items")
         else:
             print("✓ Inventory collection already has data")
-        
+
         # Sample invoices
         invoices_collection = db["invoices"]
         if invoices_collection.count_documents({}) == 0:
@@ -167,28 +170,105 @@ def create_sample_data():
             print(f"✓ Inserted {len(sample_invoices)} sample invoices")
         else:
             print("✓ Invoices collection already has data")
-        
+
         print("\n✅ Sample data creation complete!")
-        
+
     except Exception as exc:
         print(f"✗ Failed to create sample data: {exc}")
     finally:
         mongo.disconnect()
 
 
+# TDD RED PHASE for generate_pre_departure_report (hvac-parts-availability-checker skill)
+# Tests define expected Markdown report with summary, risk flags, table, recommendations.
+# Surgical addition ONLY to test_mongo.py per rules. No code in specialists.py or mongodb_tools.py yet.
+# Reuses existing InventoryForecasterAgent synthetic paths, _forecast_inventory_needs, MongoDBTools fallbacks.
+# These will fail (AttributeError on missing method) - mandatory RED per test-driven-development skill.
+
+
+def test_generate_pre_departure_report_returns_markdown_with_all_sections():
+    """RED: Method must produce structured report with all sections and risk indicators.
+    Fails because generate_pre_departure_report does not exist yet on InventoryForecasterAgent.
+    """
+    agent = InventoryForecasterAgent()
+    jobs = ["job_001", "job_002"]
+    report = agent.generate_pre_departure_report(jobs)
+    assert isinstance(report, str), "Must return string Markdown"
+    assert "# Pre-Departure Parts Availability Report" in report, (
+        "Must have standard header"
+    )
+    assert "Summary" in report, "Must include executive summary with job/risk counts"
+    assert "Risk Flags" in report, "Must have risk section with ❌/🟡/✅"
+    assert "Parts Status" in report, (
+        "Must include Markdown table of SKUs/required/current/shortage"
+    )
+    assert "Immediate Actions" in report or "recommendations" in report.lower(), (
+        "Must have actionable recommendations for techs"
+    )
+    assert any(f in report for f in ["❌", "Critical", "🟡", "Warning", "✅", "OK"]), (
+        "Must use visual risk indicators"
+    )
+
+
+def test_generate_pre_departure_report_handles_synthetic_fallback_and_validation():
+    """RED: Must handle synthetic fallback (existing in specialists.py + mongodb_tools.py), raise on bad input.
+    Tests integration with _get_synthetic_jobs, get_upcoming_jobs fallback, error handling per skill.
+    """
+    agent = InventoryForecasterAgent()
+    # Synthetic path (no real Mongo)
+    report = agent.generate_pre_departure_report(["ac_repair"])
+    assert isinstance(report, str)
+    assert any(
+        word in report.lower()
+        for word in ["synthetic", "fallback", "cached", "using sample"]
+    ), "Should document fallback"
+    # Validation edge case
+    with pytest.raises((ValueError, TypeError, AttributeError)):
+        agent.generate_pre_departure_report(
+            []
+        )  # Empty should trigger validation per skill
+
+
+def test_mongodb_tools_returns_pydantic_validated_models():
+    """RED: Tests that MongoDBTools returns Pydantic validated models (InventoryItem, JobDocument) instead of raw dicts after hardening.
+    Will fail on current dict returns. Covers job-specific checks, score math indirectly via PartsChecker integration. DB failure paths via exception.
+    """
+    from core.models.parts_schemas import InventoryItem, JobDocument
+    from core.tools.mongodb_tools import MongoDBTools
+
+    tools = MongoDBTools()
+    # Test inventory (real or synthetic path)
+    inventory = tools.get_low_inventory(threshold_multiplier=1.5)
+    assert len(inventory) > 0, "Must return inventory items"
+    for item in inventory[:2]:
+        assert isinstance(item, InventoryItem) or hasattr(item, "model_dump"), (
+            "Must be Pydantic validated model"
+        )
+    # Test jobs
+    jobs = tools.get_upcoming_jobs(days=5)
+    assert len(jobs) > 0
+    for job in jobs[:1]:
+        assert isinstance(job, JobDocument) or hasattr(job, "model_dump"), (
+            "JobDocument validation required"
+        )
+    print(
+        "RED test added and executed - expecting failure until validation layer in mongodb_tools.py"
+    )
+
+
 if __name__ == "__main__":
-    print("="*60)
+    print("=" * 60)
     print("HVAC OpsForge - MongoDB Test Suite")
-    print("="*60)
+    print("=" * 60)
     print()
-    
+
     success = test_mongodb_connection()
-    
+
     if success:
         response = input("\nCreate sample data for testing? (y/n): ")
-        if response.lower() == 'y':
+        if response.lower() == "y":
             create_sample_data()
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("Test complete")
-    print("="*60)
+    print("=" * 60)
