@@ -15,6 +15,7 @@ from core.agents import (
     RiskAssessorAgent,
     SchedulerOptimizerAgent,
 )
+from core.dispatch_baseline import assemble_dispatch_baseline
 from core.tools.mongodb_tools import mongodb_tools
 
 logger = logging.getLogger("hvac_opsforge.orchestrator")
@@ -217,6 +218,19 @@ async def run_pm_job(
             **schedule_result.data,
             **ar_result.data,
         }
+        dispatch_baseline = assemble_dispatch_baseline(
+            goals=goals,
+            project_data=project_data,
+            execution_plan=execution_plan,
+            inventory_data=inventory_result.data,
+            risk_data=risk_result.data,
+            schedule_data=schedule_result.data,
+            ar_data=ar_result.data,
+            data_source="mongo_or_fallback",
+        )
+        result["dispatch_baseline"] = dispatch_baseline
+        result["dispatch_baseline_markdown"] = dispatch_baseline["reports"]["markdown"]
+        result["dispatch_baseline_json"] = dispatch_baseline["reports"]["json"]
 
         # Human-in-the-loop approval step
         if require_approval:

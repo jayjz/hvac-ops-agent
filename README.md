@@ -1,98 +1,134 @@
 # HVAC OpsForge
 
-**Autonomous AI Operations Co-Pilot for HVAC & Trade Services**
+**Multi-agent operations co-pilot for HVAC and trade service teams.**
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)](https://python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-red?style=flat-square&logo=streamlit)](https://streamlit.io/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Live%20Data-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-> Transform reactive HVAC operations into proactive, data-driven workflows with an intelligent multi-agent system.
+HVAC OpsForge turns fragmented service operations data into an executive-ready dispatch baseline. A lead architect agent coordinates specialists for inventory forecasting, scheduling, accounts receivable follow-up, and operational risk analysis, with clear human review before action.
 
-## Overview
+Built for the **Google Cloud Rapid Agent Hackathon 2026**, this Phase 1 release focuses on a polished Streamlit demo, robust synthetic fallback, optional Live MongoDB execution, agent trace visibility, AR approval controls, and exportable reports.
 
-**HVAC OpsForge** is a production-ready multi-agent framework that automates core operations for HVAC and trade service businesses. It uses a Lead Architect agent to coordinate specialist agents for inventory forecasting, smart scheduling, accounts receivable follow-up, and operational risk detection — while always keeping humans in control.
-
-Originally built for the **Google Cloud Rapid Agent Hackathon 2026**, it now features a polished interactive Streamlit dashboard with full synthetic demo mode.
-
-## ✨ Key Features
-- **🤖 Multi-Agent Orchestration** — Lead Architect coordinates specialists
-- **📦 Intelligent Inventory Management** — Predictive forecasting & reordering
-- **📅 Smart Scheduling** — Skill/location/urgency optimized routes
-- **💰 Automated AR Workflows** — Overdue invoice detection & reminders
-- **⚠️ Risk Detection** — Proactive alerts for stock, cashflow, and scheduling issues
-- **👤 Human-in-the-Loop** — All actions require approval
-- **📊 Premium Interactive Dashboard** — Branded Streamlit UI with synthetic demo data
-
-## Phase 1 Demo (Try It Now)
-
-1. `streamlit run streamlit_app.py`
-2. Click **Load Demo Company**
-3. Click **Run Multi-Agent Dispatch**
-4. Explore KPIs, agent trace, dispatch board, inventory, AR queue, and export options
-
-**Screenshots / GIFs** (add these to the repo):
-- Branded hero with KPI ribbon
-- Full demo flow (sidebar → results)
-- AR tab with approve/reject controls
-- Export buttons in action
-
-## Quick Start
+## Try the Demo
 
 ```bash
 git clone https://github.com/jayjz/hvac-ops-agent.git
 cd hvac-ops-agent
 
 python -m venv venv
-.\venv\Scripts\Activate.ps1   # Windows
-# source venv/bin/activate    # macOS/Linux
-
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+
 streamlit run streamlit_app.py
 ```
 
-**Docker** (full stack with MongoDB):
-```bash
-docker compose up -d
+Then open the local Streamlit URL and run:
+
+1. Leave **Live Mongo** disabled for the instant synthetic demo.
+2. Click **Use Synthetic HVAC Data** if it is not already selected.
+3. Review or edit the analysis goals in the sidebar.
+4. Click **Run Multi-Agent Dispatch**.
+5. Review the agent trace, requirements, risks, schedule, AR queue, and exports.
+
+## Live Mongo Mode
+
+Live Mongo is optional. The dashboard always shows connection status in the sidebar and falls back to synthetic data if MongoDB is disabled or unavailable.
+
+```powershell
+$env:MONGO_URI="mongodb://localhost:27017/"
+streamlit run streamlit_app.py
 ```
+
+Expected database: `hvac_ops`
+
+Expected collections:
+- `jobs`
+- `inventory`
+- `invoices`
+
+Demo flow with Live Mongo:
+
+1. Start MongoDB locally, use Docker Compose, or point `MONGO_URI` at MongoDB Atlas.
+2. Enable **Live Mongo** in the sidebar.
+3. Confirm the sidebar reports a healthy MongoDB connection.
+4. Click **Run Multi-Agent Dispatch**.
+5. If the live run fails, the UI shows the error, preserves partial output when available, and falls back to the synthetic baseline.
+
+## Screenshots
+
+Place screenshots in `docs/assets/` so GitHub renders them reliably:
+
+```text
+docs/assets/dashboard-overview.png
+docs/assets/live-mongo-sidebar.png
+docs/assets/agent-trace-results.png
+docs/assets/ar-review-queue.png
+docs/assets/export-panel.png
+```
+
+Recommended captures:
+- Dashboard first screen with sidebar and run workspace.
+- Live Mongo enabled with healthy connection status.
+- Results page showing source indicator and agent trace.
+- AR tab with approve/reject decisions and review progress.
+- Export panel with ZIP, Markdown, Dispatch CSV, and AR CSV.
+
+Once added, embed them here:
+
+```markdown
+![HVAC OpsForge dashboard](docs/assets/dashboard-overview.png)
+![Live Mongo status](docs/assets/live-mongo-sidebar.png)
+![AR review queue](docs/assets/ar-review-queue.png)
+```
+
+## What It Does
+
+- Coordinates a multi-agent workflow from business goals to operating plan.
+- Builds a requirements register from uploaded artifacts or synthetic HVAC scope.
+- Flags delivery, procurement, controls, budget, scheduling, and AR risks.
+- Produces an optimized schedule baseline and critical path summary.
+- Identifies overdue invoices and supports approve/reject review.
+- Exports report packages, Markdown summaries, CSV tables, and risk charts.
+- Uses Live MongoDB when available and a deterministic synthetic fallback when not.
 
 ## Architecture
 
 ```mermaid
 graph TB
-    A[User Request] --> B[Lead Architect]
+    A[Streamlit Dashboard] --> B[Lead Architect Agent]
     B --> C{Execution Plan}
     C --> D[Inventory Forecaster]
-    C --> E[Scheduler Optimizer]
-    C --> F[AR Collector]
-    C --> G[Risk Assessor]
-    D --> H[(MongoDB)]
-    E --> H
-    F --> H
+    C --> E[Risk Assessor]
+    C --> F[Scheduler Optimizer]
+    C --> G[AR Collector]
+    D --> H[(MongoDB or Synthetic Fallback)]
     G --> H
-    H --> I[Proposed Actions]
-    I --> J{Human Approval}
+    E --> I[Risk Register]
+    F --> J[Schedule Baseline]
+    G --> K[AR Review Queue]
+    I --> L[Executive Report + Exports]
+    J --> L
+    K --> L
 ```
 
 ## Tech Stack
-- **Backend**: FastAPI + Python 3.11+
-- **Agents**: Modular orchestration with Lead Architect + specialists
-- **Frontend**: Streamlit (primary dashboard)
-- **Data**: MongoDB Atlas + Motor
-- **DevOps**: Docker Compose, Nginx, pytest
 
-## Project Status
-**Phase 1 Complete** — Branded premium demo UI with synthetic data, exports, and basic human-in-the-loop controls.  
-Live MongoDB flows, advanced charts, and additional integrations are next.
+- **Frontend**: Streamlit dashboard
+- **Backend**: FastAPI-ready Python services
+- **Agents**: Lead architect plus inventory, risk, scheduling, and AR specialists
+- **Data**: MongoDB live mode with synthetic fallback
+- **Analysis**: Pandas, Matplotlib, PuLP
+- **Deployment**: Docker Compose support
 
-**Version**: 0.4.0-demo  
-**Last Updated**: July 2026
+## Phase 1 Status
 
-## Contributing
-See [CODEX.md](CODEX.md) for guidelines. Open issues for major changes.
+**Complete:** polished Streamlit demo, Live Mongo healthcheck, synthetic fallback, agent trace, AR approval controls, export grouping, and dashboard reset/new-run controls.
+
+**Next:** richer seeded demo data, hosted demo environment, deeper Mongo writeback workflows, and expanded technician dispatch optimization.
 
 ## License
-MIT — see [LICENSE](LICENSE) file.
 
----
+MIT. See [LICENSE](LICENSE).

@@ -18,6 +18,7 @@ import pandas as pd
 import streamlit as st
 
 from core.orchestrator import run_pm_job
+from core.dispatch_baseline import assemble_dispatch_baseline
 from core.tools.mongodb_tools import mongodb_tools
 
 
@@ -47,6 +48,7 @@ def main() -> None:
     inject_styles()
 
     render_app_header()
+    render_top_action_bar()
     source_mode, project_path, goals, upload_meta, mongo_status = render_sidebar()
     run_clicked = render_run_panel(source_mode, project_path, goals, upload_meta, mongo_status)
 
@@ -94,6 +96,90 @@ def render_app_header() -> None:
     )
 
 
+def render_top_action_bar() -> None:
+    left, _spacer, new_col, reset_col = st.columns([0.52, 0.18, 0.15, 0.15], vertical_alignment="center")
+    with left:
+        st.markdown(
+            '<div class="top-action-title">Dispatch workspace</div>',
+            unsafe_allow_html=True,
+        )
+    with new_col:
+        if icon_button("New Run", ":material/add_circle:", key="new_run_action"):
+            st.session_state["confirm_new_run"] = True
+            st.session_state.pop("confirm_reset", None)
+    with reset_col:
+        if icon_button("Reset", ":material/restart_alt:", key="reset_action"):
+            st.session_state["confirm_reset"] = True
+            st.session_state.pop("confirm_new_run", None)
+
+    render_action_confirmations()
+
+
+def icon_button(
+    label: str,
+    icon: str,
+    *,
+    key: str,
+    disabled: bool = False,
+    button_type: str = "secondary",
+    width: str = "stretch",
+) -> bool:
+    try:
+        return st.button(label, key=key, icon=icon, disabled=disabled, type=button_type, width=width)
+    except TypeError:
+        return st.button(label, key=key, disabled=disabled, type=button_type, width=width)
+
+
+def icon_download_button(label: str, icon: str, **kwargs: Any) -> bool:
+    try:
+        return st.download_button(label, icon=icon, **kwargs)
+    except TypeError:
+        return st.download_button(label, **kwargs)
+
+
+def render_action_confirmations() -> None:
+    if st.session_state.get("confirm_new_run"):
+        st.warning("Start a new run? This clears the current report and AR review decisions.")
+        confirm_col, cancel_col, _ = st.columns([0.18, 0.18, 0.64])
+        with confirm_col:
+            confirm_new_run = icon_button("Confirm", ":material/check_circle:", key="confirm_new_run_action")
+        with cancel_col:
+            cancel_new_run = icon_button("Cancel", ":material/close:", key="cancel_new_run_action")
+        if confirm_new_run:
+            clear_run_state()
+            st.session_state.pop("confirm_new_run", None)
+            st.toast("Ready for a new dispatch run.")
+            st.rerun()
+        if cancel_new_run:
+            st.session_state.pop("confirm_new_run", None)
+            st.rerun()
+
+    if st.session_state.get("confirm_reset"):
+        st.warning("Reset dashboard? This clears uploads, goals, Live Mongo selection, results, and AR decisions.")
+        confirm_col, cancel_col, _ = st.columns([0.18, 0.18, 0.64])
+        with confirm_col:
+            confirm_reset = icon_button("Confirm", ":material/check_circle:", key="confirm_reset_action")
+        with cancel_col:
+            cancel_reset = icon_button("Cancel", ":material/close:", key="cancel_reset_action")
+        if confirm_reset:
+            clear_run_state()
+            for key in ["source_mode", "upload_dir", "upload_meta", "goals", "live_mongo_enabled", "confirm_reset"]:
+                st.session_state.pop(key, None)
+            st.toast("Dashboard reset.")
+            st.rerun()
+        if cancel_reset:
+            st.session_state.pop("confirm_reset", None)
+            st.rerun()
+
+
+def clear_run_state() -> None:
+    st.session_state.pop("pm_result", None)
+    st.session_state.pop("ar_decision_feedback", None)
+    for key in list(st.session_state.keys()):
+        if str(key).startswith("ar_decision_"):
+            st.session_state.pop(key, None)
+
+
 def render_sidebar() -> tuple[str, str | None, list[str], dict[str, Any], dict[str, Any]]:
     with st.sidebar:
         st.markdown('<div class="sidebar-title">Project Setup</div>', unsafe_allow_html=True)
@@ -109,7 +195,11 @@ def render_sidebar() -> tuple[str, str | None, list[str], dict[str, Any], dict[s
         mongo_status = check_live_mongo_status(live_mongo_enabled)
         render_mongo_status(mongo_status)
 
-        synthetic_clicked = st.button("Use Synthetic HVAC Data", width="stretch")
+        synthetic_clicked = icon_button(
+            "Use Synthetic HVAC Data",
+            ":material/database:",
+            key="use_synthetic_data",
+        )
         if synthetic_clicked:
             st.session_state["source_mode"] = "synthetic"
             st.session_state.pop("upload_dir", None)
@@ -222,9 +312,11 @@ def render_run_panel(
         )
     with right:
         disabled = source_mode == "upload" and not project_path
-        return st.button(
+        return icon_button(
             "Run Multi-Agent Dispatch",
-            type="primary",
+            ":material/play_arrow:",
+            key="run_multi_agent_dispatch",
+            button_type="primary",
             width="stretch",
             disabled=disabled,
         )
@@ -380,6 +472,20 @@ def format_bytes(size: int) -> str:
     return f"{size} B"
 
 
+def format_currency(value: Any) -> str:
+    try:
+        return f"${float(value):,.0f}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def format_roi(value: Any) -> str:
+    try:
+        return f"{float(value):.2f}x"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
 def build_demo_dataset() -> dict[str, list[dict[str, Any]]]:
     """Build Streamlit-owned synthetic demo data with normalized date types."""
     now = datetime.utcnow()
@@ -446,7 +552,20 @@ def build_synthetic_result(
     }
     if partial_result:
         result["partial_live_result"] = partial_result
-    return enforce_synthetic_baseline(result, goals)
+    fixed = enforce_synthetic_baseline(result, goals)
+    fixed["dispatch_baseline"] = assemble_dispatch_baseline(
+        goals=goals,
+        project_data={"source": "synthetic", "synthetic": True},
+        execution_plan=fixed.get("execution_plan", []),
+        inventory_data={"requirements_register": fixed.get("requirements_register", [])},
+        risk_data={"risk_register": fixed.get("risk_register", [])},
+        schedule_data={"optimized_schedule": fixed.get("optimized_schedule", {})},
+        ar_data={"overdue_invoices": fixed.get("overdue_invoices", [])},
+        data_source="synthetic",
+    )
+    fixed["dispatch_baseline_markdown"] = fixed["dispatch_baseline"]["reports"]["markdown"]
+    fixed["dispatch_baseline_json"] = fixed["dispatch_baseline"]["reports"]["json"]
+    return fixed
 
 
 def run_job_with_live_progress(project_path: str | None, goals: list[str], progress: Any, status: Any) -> dict[str, Any]:
@@ -620,6 +739,7 @@ def render_results(result: dict[str, Any]) -> None:
     risk_chart_bytes = resolve_risk_chart(report, risks_df)
 
     st.markdown('<div class="section-kicker">Results</div>', unsafe_allow_html=True)
+    render_dispatch_baseline_section(result)
     render_success_banner(
         report,
         requirements_df,
@@ -645,6 +765,70 @@ def render_results(result: dict[str, Any]) -> None:
         render_ar_tab(ar_df)
     with summary:
         render_summary_tab(report, result)
+
+
+def render_dispatch_baseline_section(result: dict[str, Any]) -> None:
+    baseline = result.get("dispatch_baseline") or {}
+    if not baseline:
+        return
+
+    roi = baseline.get("roi_summary", {})
+    summary = baseline.get("summary", {})
+    markdown_report = (
+        result.get("dispatch_baseline_markdown")
+        or baseline.get("reports", {}).get("markdown")
+        or "# Dispatch Baseline\n\nNo Markdown report was returned."
+    )
+    json_report = (
+        result.get("dispatch_baseline_json")
+        or baseline.get("reports", {}).get("json")
+        or "{}"
+    )
+
+    st.markdown(
+        """
+        <div class="dispatch-baseline-hero">
+            <span>Hero Output</span>
+            <strong>Dispatch Baseline</strong>
+            <p>Executive-ready operating baseline with ROI, risks, schedule, AR priority, and recommended actions.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Estimated ROI", format_roi(roi.get("estimated_roi", summary.get("estimated_roi"))))
+    metric_cols[1].metric("Value", format_currency(roi.get("estimated_value")))
+    metric_cols[2].metric("AR Opportunity", format_currency(summary.get("ar_recovery_opportunity")))
+    metric_cols[3].metric("Planned Days", summary.get("planned_duration_days", "n/a"))
+
+    preview_col, action_col = st.columns([0.68, 0.32], vertical_alignment="top")
+    with preview_col:
+        with st.expander("Markdown preview", expanded=True):
+            st.markdown(markdown_report)
+    with action_col:
+        st.markdown('<div class="export-title">Baseline downloads</div>', unsafe_allow_html=True)
+        icon_download_button(
+            "Download Baseline MD",
+            ":material/article:",
+            data=markdown_report.encode("utf-8"),
+            file_name="hvac_opsforge_dispatch_baseline.md",
+            mime="text/markdown",
+            width="stretch",
+        )
+        icon_download_button(
+            "Download Baseline JSON",
+            ":material/data_object:",
+            data=json_report.encode("utf-8"),
+            file_name="hvac_opsforge_dispatch_baseline.json",
+            mime="application/json",
+            width="stretch",
+        )
+        actions = baseline.get("recommended_actions", [])
+        if actions:
+            st.markdown("**Next actions**")
+            for action in actions[:3]:
+                st.write(f"- {action}")
 
 
 def render_run_metadata(result: dict[str, Any]) -> None:
@@ -688,39 +872,57 @@ def render_success_banner(
             unsafe_allow_html=True,
         )
     with right:
-        st.markdown("**Exports**")
-        primary_export, markdown_export = st.columns(2)
-        primary_export.download_button(
-            "Full ZIP",
-            data=zip_bytes,
-            file_name="agentforge_pm_report.zip",
-            mime="application/zip",
-            width="stretch",
-        )
-        markdown_export.download_button(
-            "Markdown",
-            data=build_summary_markdown(report).encode("utf-8"),
-            file_name="hvac_opsforge_report.md",
-            mime="text/markdown",
-            width="stretch",
-        )
-        csv_exports = st.columns(2)
-        if not schedule_df.empty:
-            csv_exports[0].download_button(
-                "Dispatch CSV",
-                data=schedule_df.to_csv(index=False).encode("utf-8"),
-                file_name="hvac_opsforge_dispatch.csv",
-                mime="text/csv",
-                width="stretch",
-            )
-        if not ar_df.empty:
-            csv_exports[1].download_button(
-                "AR CSV",
-                data=ar_df.to_csv(index=False).encode("utf-8"),
-                file_name="hvac_opsforge_ar.csv",
-                mime="text/csv",
-                width="stretch",
-            )
+        st.markdown('<div class="export-title">Exports</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.caption("Report package")
+            primary_export, markdown_export = st.columns(2)
+            with primary_export:
+                icon_download_button(
+                    "Full ZIP",
+                    ":material/archive:",
+                    data=zip_bytes,
+                    file_name="agentforge_pm_report.zip",
+                    mime="application/zip",
+                    width="stretch",
+                )
+            with markdown_export:
+                icon_download_button(
+                    "Markdown",
+                    ":material/article:",
+                    data=build_summary_markdown(report).encode("utf-8"),
+                    file_name="hvac_opsforge_report.md",
+                    mime="text/markdown",
+                    width="stretch",
+                )
+        with st.container(border=True):
+            st.caption("Operational tables")
+            csv_exports = st.columns(2)
+            if not schedule_df.empty:
+                with csv_exports[0]:
+                    icon_download_button(
+                        "Dispatch CSV",
+                        ":material/table:",
+                        data=schedule_df.to_csv(index=False).encode("utf-8"),
+                        file_name="hvac_opsforge_dispatch.csv",
+                        mime="text/csv",
+                        width="stretch",
+                    )
+            else:
+                with csv_exports[0]:
+                    icon_button("Dispatch CSV", ":material/table:", key="disabled_dispatch_csv", disabled=True)
+            if not ar_df.empty:
+                with csv_exports[1]:
+                    icon_download_button(
+                        "AR CSV",
+                        ":material/receipt_long:",
+                        data=ar_df.to_csv(index=False).encode("utf-8"),
+                        file_name="hvac_opsforge_ar.csv",
+                        mime="text/csv",
+                        width="stretch",
+                    )
+            else:
+                with csv_exports[1]:
+                    icon_button("AR CSV", ":material/receipt_long:", key="disabled_ar_csv", disabled=True)
 
 
 def render_overview_tab(
@@ -775,8 +977,9 @@ def render_risks_tab(risks_df: pd.DataFrame, risk_chart_bytes: bytes | None) -> 
     with risk_chart:
         if risk_chart_bytes:
             st.image(risk_chart_bytes, caption="Top PM risks", width="stretch")
-            st.download_button(
+            icon_download_button(
                 "Download Risk Chart PNG",
+                ":material/image:",
                 data=risk_chart_bytes,
                 file_name="agentforge_risk_chart.png",
                 mime="image/png",
@@ -808,6 +1011,20 @@ def render_ar_tab(ar_df: pd.DataFrame) -> None:
     if feedback:
         st.success(feedback)
 
+    decision_counts = {"Approved": 0, "Rejected": 0, "Pending": 0}
+    for idx, invoice in ar_df.iterrows():
+        invoice_id = str(invoice.get("invoice_id") or invoice.get("_id") or f"invoice-{idx + 1}")
+        decision = st.session_state.get(f"ar_decision_{invoice_id}", "Pending")
+        decision_counts[decision if decision in decision_counts else "Pending"] += 1
+
+    approved_col, rejected_col, pending_col = st.columns(3)
+    approved_col.metric("Approved", decision_counts["Approved"])
+    rejected_col.metric("Rejected", decision_counts["Rejected"])
+    pending_col.metric("Pending", decision_counts["Pending"])
+    reviewed_count = decision_counts["Approved"] + decision_counts["Rejected"]
+    total_count = max(len(ar_df), 1)
+    st.progress(reviewed_count / total_count, text=f"{reviewed_count} of {len(ar_df)} AR follow-ups reviewed.")
+
     for idx, invoice in ar_df.iterrows():
         invoice_id = str(
             invoice.get("invoice_id")
@@ -819,25 +1036,47 @@ def render_ar_tab(ar_df: pd.DataFrame) -> None:
         decision_key = f"ar_decision_{invoice_id}"
         current_decision = st.session_state.get(decision_key, "Pending")
 
-        invoice_col, status_col, approve_col, reject_col = st.columns(
-            [0.46, 0.18, 0.18, 0.18],
-            vertical_alignment="center",
-        )
-        invoice_col.write(f"**{invoice_id}**")
-        invoice_col.caption(f"{customer} - ${amount:,.2f}")
-        status_col.info(current_decision)
-        if approve_col.button("Approve", key=f"approve_{invoice_id}", width="stretch"):
-            st.session_state[decision_key] = "Approved"
-            st.session_state["ar_decision_feedback"] = (
-                f"Approved AR follow-up for {invoice_id}."
+        with st.container(border=True):
+            invoice_col, status_col, approve_col, reject_col = st.columns(
+                [0.46, 0.18, 0.18, 0.18],
+                vertical_alignment="center",
             )
-            st.rerun()
-        if reject_col.button("Reject", key=f"reject_{invoice_id}", width="stretch"):
-            st.session_state[decision_key] = "Rejected"
-            st.session_state["ar_decision_feedback"] = (
-                f"Rejected AR follow-up for {invoice_id}."
-            )
-            st.rerun()
+            invoice_col.write(f"**{invoice_id}**")
+            invoice_col.caption(f"{customer} - ${amount:,.2f}")
+            if current_decision == "Approved":
+                status_col.success("Approved")
+            elif current_decision == "Rejected":
+                status_col.error("Rejected")
+            else:
+                status_col.info("Pending")
+            with approve_col:
+                approve_clicked = icon_button(
+                    "Approve",
+                    ":material/check:",
+                    key=f"approve_{invoice_id}",
+                    disabled=current_decision == "Approved",
+                )
+            if approve_clicked:
+                st.session_state[decision_key] = "Approved"
+                st.session_state["ar_decision_feedback"] = (
+                    f"Approved AR follow-up for {invoice_id}."
+                )
+                st.toast(f"Approved {invoice_id}.")
+                st.rerun()
+            with reject_col:
+                reject_clicked = icon_button(
+                    "Reject",
+                    ":material/close:",
+                    key=f"reject_{invoice_id}",
+                    disabled=current_decision == "Rejected",
+                )
+            if reject_clicked:
+                st.session_state[decision_key] = "Rejected"
+                st.session_state["ar_decision_feedback"] = (
+                    f"Rejected AR follow-up for {invoice_id}."
+                )
+                st.toast(f"Rejected {invoice_id}.")
+                st.rerun()
 
 
 def render_summary_tab(report: dict[str, Any], result: dict[str, Any]) -> None:
@@ -856,8 +1095,9 @@ def render_summary_tab(report: dict[str, Any], result: dict[str, Any]) -> None:
 def download_csv(label: str, frame: pd.DataFrame, file_name: str) -> None:
     if frame.empty:
         return
-    st.download_button(
+    icon_download_button(
         label,
+        ":material/download:",
         data=frame.to_csv(index=False).encode("utf-8"),
         file_name=file_name,
         mime="text/csv",
@@ -998,7 +1238,14 @@ def inject_styles() -> None:
             max-width: 1440px;
         }
 
-        .app-hero, .empty-state, .run-card, .preview-card, .success-banner {
+        .top-action-title {
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-weight: 750;
+            margin: -0.35rem 0 0.65rem;
+        }
+
+        .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero {
             border: 1px solid var(--border);
             background: var(--card);
             box-shadow: var(--shadow);
@@ -1263,6 +1510,41 @@ def inject_styles() -> None:
             font-size: 1.05rem;
         }
 
+        .dispatch-baseline-hero {
+            border-radius: 8px;
+            padding: 1.2rem 1.35rem;
+            margin: 0.4rem 0 0.9rem;
+            background:
+                linear-gradient(135deg, rgba(32, 199, 179, 0.18), rgba(59, 130, 246, 0.10)),
+                var(--card);
+        }
+
+        .dispatch-baseline-hero span {
+            color: #96f2e7;
+            font-size: 0.78rem;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        .dispatch-baseline-hero strong {
+            display: block;
+            color: #ffffff;
+            font-size: clamp(1.55rem, 3vw, 2.35rem);
+            margin-top: 0.2rem;
+        }
+
+        .dispatch-baseline-hero p {
+            color: var(--muted);
+            margin: 0.3rem 0 0;
+            line-height: 1.5;
+        }
+
+        .export-title {
+            color: #ffffff;
+            font-weight: 800;
+            margin-bottom: 0.35rem;
+        }
+
         .panel-title {
             margin: 0.8rem 0 0.6rem;
             font-size: 1.05rem;
@@ -1334,7 +1616,9 @@ def inject_styles() -> None:
 
             .app-hero h1, .empty-state h2, .preview-card h3, .run-card h3,
             .mini-stat strong, .empty-metrics strong, .success-banner strong,
-            .section-kicker, .panel-title, .sidebar-title, .sidebar-section {
+            .dispatch-baseline-hero strong,
+            .section-kicker, .panel-title, .sidebar-title, .sidebar-section,
+            .export-title {
                 color: #10232f;
             }
 
@@ -1351,6 +1635,33 @@ def inject_styles() -> None:
 
             .hero-stat-grid, .empty-metrics {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .block-container {
+                padding: 0.75rem 0.75rem 2rem;
+            }
+
+            .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero {
+                padding: 0.95rem;
+            }
+
+            .app-hero {
+                gap: 1rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .section-kicker {
+                margin-top: 0.8rem;
+            }
+
+            .stTabs [data-baseweb="tab"] {
+                padding: 0.65rem 0.7rem;
+            }
+
+            .stButton > button, .stDownloadButton > button {
+                min-height: 2.55rem;
             }
         }
         </style>
