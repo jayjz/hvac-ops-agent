@@ -84,6 +84,29 @@ After a run completes, open the **Technician Dispatch** tab for a field-ready mo
 
 Example field workflow: a dispatcher runs the synthetic demo in the office, opens **Technician Dispatch** on a phone or tablet, confirms the filter set, belt kit, controls sensor, and fasteners are staged, then exports the offline JSON before sending the tech to the first route stop.
 
+## QuickBooks-Compatible Exports
+
+Dispatch Baseline data can be exported as QuickBooks-friendly invoice, schedule, and parts files. The export maps common fields such as customer, invoice number, due date, product/service, quantity, amount, SKU, cost, reorder point, and preferred vendor.
+
+```python
+from core.dispatch_baseline import build_dispatch_baseline_sync, save_quickbooks_exports
+
+baseline = build_dispatch_baseline_sync(
+    goals=["Prioritize backlog, stage parts, and recover overdue AR"],
+    use_mongo=False,
+)
+
+paths = save_quickbooks_exports(baseline, "exports/quickbooks")
+print(paths["quickbooks_invoices.csv"])
+print(paths["quickbooks_dispatch_baseline.xlsx"])
+```
+
+Generated files:
+- `quickbooks_invoices.csv`
+- `quickbooks_schedule.csv`
+- `quickbooks_parts.csv`
+- `quickbooks_dispatch_baseline.xlsx`
+
 ## Live Mongo Mode
 
 Live Mongo is optional. The dashboard always shows connection status in the sidebar and falls back to synthetic data if MongoDB is disabled or unavailable.
