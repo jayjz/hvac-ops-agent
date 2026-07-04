@@ -4,24 +4,28 @@ python-dotenv>=1.0.0
 PyYAML>=6.0
 jinja2>=3.1.0
 pymongo>=4.6.0
+pydantic>=2.0.0          # Critical for Phase 9 pure models
+motor>=3.3.0             # Async MongoDB driver (recommended for async agents)
 
 # System & Tools
 gitpython>=3.1.0
 rich>=13.0.0
 click>=8.0.0
 
+# Async & HTTP
+aiohttp>=3.8.0           # Already present — keep for OSRM + future
+asyncio>=3.4.3
+
 # API Server
 fastapi>=0.100.0
 uvicorn[standard]>=0.22.0
 aiohttp>=3.8.0
+asyncio>=3.4.3
 
 # PM Agent Tooling
-streamlit>=1.35.0          # Good - supports current UI
+streamlit>=1.35.0
 pandas>=2.0.0
 openpyxl>=3.1.0
 pulp>=2.7.0
 matplotlib>=3.7.0
 pypdf>=4.0.0
-
-# Optional but useful for dev/demo
-pytest>=8.0.0

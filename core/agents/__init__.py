@@ -20,3 +20,8 @@ __all__ = [
     "RiskAssessorAgent",
     "SchedulerOptimizerAgent",
 ]
+
+# Dynamic registry for orchestrator (added for clean architecture and demo scalability)
+from core.agents.specialists import SPECIALISTS, register_specialist
+
+__all__ += ["SPECIALISTS", "register_specialist"]
