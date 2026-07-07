@@ -40,7 +40,7 @@ def render_ar_operations() -> None:
         current_decision = st.session_state.get(decision_key, "Pending")
 
         with st.container():
-            st.markdown('<div class="glass-card" style="padding: 1rem; margin-bottom: 1rem;">', unsafe_allow_html=True)
+            st.markdown('<div class="glass-card" style="padding: 1.2rem; margin-bottom: 1rem;">', unsafe_allow_html=True)
             col1, col2, col3 = st.columns([0.6, 0.2, 0.2], vertical_alignment="center")
             
             with col1:
@@ -53,13 +53,13 @@ def render_ar_operations() -> None:
                 elif current_decision == "Rejected":
                     st.error("Rejected")
                 else:
-                    if st.button("Approve Action", key=f"app_{invoice_id}", use_container_width=True):
+                    if st.button("Approve Action", key=f"app_{invoice_id}", width="stretch"):
                         st.session_state[decision_key] = "Approved"
                         st.rerun()
                         
             with col3:
                 if current_decision == "Pending":
-                    if st.button("Reject", key=f"rej_{invoice_id}", use_container_width=True):
+                    if st.button("Reject", key=f"rej_{invoice_id}", width="stretch"):
                         st.session_state[decision_key] = "Rejected"
                         st.rerun()
                         

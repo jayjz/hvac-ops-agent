@@ -1,6 +1,5 @@
 # views/technician_view.py
 import streamlit as st
-import pandas as pd
 
 def render_technician_view() -> None:
     """Renders the mobile-first operational view for field techs."""
@@ -8,6 +7,7 @@ def render_technician_view() -> None:
     st.markdown('<div class="section-kicker">Field Operations</div>', unsafe_allow_html=True)
     st.title("Technician Dispatch")
     
+    # Pull from the global state established by the Dispatch Workspace
     result = st.session_state.get("pm_result")
     
     if not result:
@@ -25,11 +25,11 @@ def render_technician_view() -> None:
         unsafe_allow_html=True
     )
 
-    # Extract data from global state
     schedule = result.get("optimized_schedule", {})
     tasks = schedule.get("tasks", [])
     risks = result.get("risk_register", [])
 
+    # Two-column layout for desktop, stacks on mobile
     col1, col2 = st.columns([0.6, 0.4], gap="large")
     
     with col1:
@@ -37,7 +37,7 @@ def render_technician_view() -> None:
         if not tasks:
             st.info("No tasks scheduled.")
         else:
-            for idx, task in enumerate(tasks[:5], 1): # Show top 5 for mobile
+            for idx, task in enumerate(tasks[:5], 1): # Show top 5
                 _render_job_card(idx, task)
 
     with col2:
@@ -66,7 +66,7 @@ def _render_job_card(sequence: int, task: dict) -> None:
                 <span style="color: var(--accent-teal); font-weight: 700; font-size: 0.8rem;">STOP {sequence}</span>
                 <span style="background: var(--border-subtle); padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem;">{duration} Days</span>
             </div>
-            <h3 style="margin: 0; font-size: 1.2rem;">{task_name}</h3>
+            <h3 style="margin: 0; font-size: 1.2rem; color: var(--text-primary);">{task_name}</h3>
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
                 Status: Ready for Execution
             </p>
