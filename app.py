@@ -3,8 +3,7 @@ import streamlit as st
 
 # Core setup imports
 from core.state_manager import initialize_app_state
-from ui.styles import inject_premium_saas_styles
-
+from ui.styles import inject_global_css
 # Import our decoupled views
 from views.dispatch_workspace import render_dispatch_workspace
 from views.technician_view import render_technician_view
@@ -25,8 +24,7 @@ def main() -> None:
     initialize_app_state()
     
     # 3. Inject the Heavens.pro visual system
-    inject_premium_saas_styles()
-
+    inject_global_css()
     # 4. Global Navigation
     st.sidebar.markdown(
         '<div style="font-weight: 800; font-size: 1.2rem; color: #FAFAFA; margin-bottom: 2rem;">OpsForge</div>', 
