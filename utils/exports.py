@@ -4,6 +4,9 @@ from typing import Any, Dict
 from io import BytesIO
 from zipfile import ZIP_DEFLATED, ZipFile
 
+# Import the core QuickBooks logic
+from core.dispatch_baseline import render_quickbooks_excel_export
+
 def build_dispatch_baseline_download_zip(markdown_report: str, json_report: str) -> bytes:
     """
     Bundles the executive markdown and raw JSON baseline into a downloadable ZIP.
@@ -13,7 +16,6 @@ def build_dispatch_baseline_download_zip(markdown_report: str, json_report: str)
         archive.writestr("dispatch_baseline.md", markdown_report)
         archive.writestr("dispatch_baseline.json", json_report)
     return output.getvalue()
-
 
 def build_report_zip(
     report: Dict[str, Any],
@@ -65,3 +67,12 @@ def _build_summary_markdown(report: Dict[str, Any]) -> str:
         lines.extend([f"- {action}" for action in actions])
         
     return "\n".join(lines)
+
+def build_quickbooks_xlsx(baseline_data: Dict[str, Any]) -> bytes | None:
+    """
+    Wraps the core dispatch baseline logic to generate a QuickBooks-compatible 
+    Excel workbook containing Invoices, Schedule, and Parts.
+    """
+    if not baseline_data:
+        return None
+    return render_quickbooks_excel_export(baseline_data)
