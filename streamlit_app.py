@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
 import asyncio
 from datetime import date, datetime, timedelta
 import html
@@ -12,18 +11,18 @@ from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
-=======
-from typing import Any, Dict
->>>>>>> dev/ai-integration
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
-<<<<<<< HEAD
 from core.orchestrator import run_pm_job
 from core.dispatch_baseline import assemble_dispatch_baseline
 from core.tools.mongodb_tools import mongodb_tools
 
+
+APP_TITLE = "HVAC OpsForge"
+APP_SUBTITLE = "Autonomous AI Operations Co-Pilot for HVAC & Trade Services"
 
 DEFAULT_GOALS = [
     "Build an HVAC retrofit PM baseline.",
@@ -42,23 +41,15 @@ class PMRunError(RuntimeError):
 
 
 def main() -> None:
-=======
-
-APP_TITLE = "HVAC OpsForge"
-APP_SUBTITLE = "Autonomous AI Operations Co-Pilot for HVAC & Trade Services"
-
-
-def configure_page() -> None:
-    """Configure the Streamlit shell once for a wide, demo-ready dashboard."""
->>>>>>> dev/ai-integration
     st.set_page_config(
         page_title=f"{APP_TITLE} Dashboard",
         page_icon="AF",
         layout="wide",
         initial_sidebar_state="expanded",
     )
+    # Structure change: load the custom SaaS shell before rendering any dashboard surface.
+    inject_styles()
 
-<<<<<<< HEAD
     render_app_header()
     render_top_action_bar()
     source_mode, project_path, goals, upload_meta, mongo_status = render_sidebar()
@@ -782,6 +773,8 @@ def render_results(result: dict[str, Any]) -> None:
 
 
 def render_dispatch_baseline_section(result: dict[str, Any]) -> None:
+    # Rationale: keep Dispatch Baseline as the first results surface because owners need ROI,
+    # AR exposure, planned duration, and recommended actions before drilling into tabs.
     baseline = result.get("dispatch_baseline") or {}
     if not baseline:
         return
@@ -1558,269 +1551,375 @@ def build_gantt_figure(schedule_df: pd.DataFrame) -> plt.Figure:
     return fig
 
 
+
 def inject_styles() -> None:
+    """Install the premium 2026 SaaS visual system without external frontend dependencies."""
     st.markdown(
         """
         <style>
+        /* Design tokens: requested 2026 dark SaaS palette and reusable glass surfaces. */
         :root {
-            --bg: #08111a;
-            --surface: #0f1720;
-            --surface-2: #132332;
-            --card: rgba(19, 35, 50, 0.82);
-            --border: rgba(132, 203, 214, 0.18);
-            --text: #edf8fb;
-            --muted: #9bb7c3;
-            --teal: #20c7b3;
-            --blue: #3b82f6;
-            --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+            --bg: #0A1428;
+            --bg-2: #0E1B34;
+            --panel: rgba(15, 23, 42, 0.72);
+            --panel-strong: rgba(10, 20, 40, 0.88);
+            --glass: rgba(226, 232, 240, 0.075);
+            --glass-hover: rgba(226, 232, 240, 0.115);
+            --border: rgba(226, 232, 240, 0.14);
+            --border-strong: rgba(0, 245, 212, 0.34);
+            --text: #E2E8F0;
+            --muted: #94A3B8;
+            --muted-2: #64748B;
+            --teal: #00F5D4;
+            --purple: #8B5CF6;
+            --amber: #FFB300;
+            --danger: #FB7185;
+            --radius: 8px;
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+            --shadow-soft: 0 14px 44px rgba(0, 0, 0, 0.22);
         }
 
+        /* App shell: premium dark mode with subtle depth, no external assets. */
         .stApp {
-            background:
-                radial-gradient(circle at top left, rgba(32, 199, 179, 0.13), transparent 32rem),
-                linear-gradient(135deg, #08111a 0%, #0c1824 48%, #0d1f2c 100%);
             color: var(--text);
+            background:
+                radial-gradient(circle at 12% -8%, rgba(0, 245, 212, 0.18), transparent 30rem),
+                radial-gradient(circle at 88% 2%, rgba(139, 92, 246, 0.20), transparent 34rem),
+                radial-gradient(circle at 70% 96%, rgba(255, 179, 0, 0.08), transparent 28rem),
+                linear-gradient(135deg, #081024 0%, var(--bg) 48%, #0B1020 100%);
         }
 
-        [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #0b1620 0%, #0f1c27 100%);
-            border-right: 1px solid var(--border);
-        }
-
-        h1, h2, h3 {
-            letter-spacing: 0;
+        .stApp::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(226, 232, 240, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(226, 232, 240, 0.025) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 72%);
+            z-index: 0;
         }
 
         .block-container {
-            padding-top: 1.25rem;
-            padding-bottom: 3rem;
-            max-width: 1440px;
+            max-width: 1480px;
+            padding: 1.1rem 1.45rem 3rem;
+            position: relative;
+            z-index: 1;
         }
 
-        .top-action-title {
-            color: var(--muted);
-            font-size: 0.88rem;
-            font-weight: 750;
-            margin: -0.35rem 0 0.65rem;
+        h1, h2, h3, p, label, span, div {
+            letter-spacing: 0;
         }
 
-        .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero, .technician-hero, .tech-job-card {
+        a { color: var(--teal); }
+
+        /* Sidebar: command rail for owners and dispatchers, optimized for dense workflows. */
+        [data-testid="stSidebar"] {
+            background:
+                linear-gradient(180deg, rgba(10, 20, 40, 0.96), rgba(8, 16, 32, 0.92)),
+                radial-gradient(circle at top, rgba(0, 245, 212, 0.14), transparent 16rem);
+            border-right: 1px solid var(--border);
+            box-shadow: 16px 0 64px rgba(0, 0, 0, 0.26);
+        }
+
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 1.4rem;
+        }
+
+        .sidebar-title {
+            color: #FFFFFF;
+            font-size: 1.05rem;
+            font-weight: 850;
+            margin-bottom: 0.15rem;
+        }
+
+        .sidebar-title::before {
+            content: "AF";
+            display: inline-flex;
+            width: 2rem;
+            height: 2rem;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.55rem;
+            border-radius: var(--radius);
+            color: #06111F;
+            background: linear-gradient(135deg, var(--teal), #7DD3FC);
+            box-shadow: 0 0 30px rgba(0, 245, 212, 0.28);
+            font-size: 0.72rem;
+            font-weight: 900;
+            vertical-align: middle;
+        }
+
+        .sidebar-section, .section-kicker {
+            color: var(--teal);
+            font-size: 0.76rem;
+            font-weight: 850;
+            margin: 1.15rem 0 0.58rem;
+            text-transform: uppercase;
+        }
+
+        .section-kicker { margin-top: 1rem; }
+
+        /* Hero and glass cards: executive polish while preserving fast scan behavior. */
+        .app-hero,
+        .empty-state,
+        .run-card,
+        .preview-card,
+        .success-banner,
+        .dispatch-baseline-hero,
+        .technician-hero,
+        .tech-job-card,
+        .source-card,
+        .baseline-action {
             border: 1px solid var(--border);
-            background: var(--card);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(12px);
+            background:
+                linear-gradient(135deg, rgba(226, 232, 240, 0.105), rgba(226, 232, 240, 0.045)),
+                var(--panel);
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(18px) saturate(145%);
+            -webkit-backdrop-filter: blur(18px) saturate(145%);
         }
 
         .app-hero {
-            display: flex;
-            justify-content: space-between;
-            gap: 1.5rem;
-            padding: 1.55rem;
-            border-radius: 8px;
-            margin-bottom: 1.25rem;
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+            gap: 1rem;
+            align-items: end;
+            min-height: 250px;
+            padding: clamp(1.1rem, 3vw, 2rem);
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+            animation: fadeUp 360ms ease-out both;
         }
 
-        .app-hero h1 {
-            margin: 0.3rem 0 0.35rem;
-            font-size: clamp(2rem, 4vw, 3.6rem);
-            color: #ffffff;
-        }
-
-        .app-hero p, .empty-state p, .preview-card p, .run-card p {
-            color: var(--muted);
-            margin: 0;
-            line-height: 1.55;
+        .app-hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -12% -42% 42%;
+            height: 15rem;
+            background: linear-gradient(90deg, rgba(0, 245, 212, 0.24), rgba(139, 92, 246, 0.20), rgba(255, 179, 0, 0.10));
+            filter: blur(42px);
+            pointer-events: none;
         }
 
         .eyebrow-row {
             display: flex;
             align-items: center;
-            gap: 0.65rem;
+            flex-wrap: wrap;
+            gap: 0.55rem;
+            position: relative;
+            z-index: 1;
         }
 
         .product-icon {
-            width: 2.25rem;
-            height: 2.25rem;
             display: inline-flex;
+            width: 2.45rem;
+            height: 2.45rem;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
-            background: rgba(32, 199, 179, 0.14);
-            border: 1px solid rgba(32, 199, 179, 0.28);
+            border-radius: var(--radius);
+            color: #06111F;
+            background: linear-gradient(135deg, var(--teal), #7DD3FC);
+            box-shadow: 0 0 36px rgba(0, 245, 212, 0.30);
+            font-weight: 900;
         }
 
         .ai-badge {
             display: inline-flex;
-            align-items: center;
             width: fit-content;
+            align-items: center;
+            border: 1px solid rgba(0, 245, 212, 0.28);
             border-radius: 999px;
-            padding: 0.25rem 0.65rem;
-            font-size: 0.78rem;
-            font-weight: 700;
-            color: #09201f;
-            background: linear-gradient(90deg, #96f2e7, #8cc8ff);
+            padding: 0.28rem 0.68rem;
+            color: var(--teal);
+            background: rgba(0, 245, 212, 0.09);
+            font-size: 0.76rem;
+            font-weight: 800;
+        }
+
+        .app-hero h1 {
+            color: #FFFFFF;
+            font-size: clamp(2.35rem, 6vw, 5.4rem);
+            line-height: 0.94;
+            margin: 0.85rem 0 0.65rem;
+            max-width: 11ch;
+            position: relative;
+            z-index: 1;
+        }
+
+        .app-hero p,
+        .empty-state p,
+        .preview-card p,
+        .run-card p,
+        .dispatch-baseline-hero p,
+        .technician-hero p,
+        .tech-job-card p,
+        .tech-job-card small,
+        .source-card span,
+        .route-step small {
+            color: var(--muted);
+            line-height: 1.55;
+            margin: 0;
         }
 
         .hero-stat-grid {
-            min-width: min(430px, 100%);
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
-            align-self: end;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.72rem;
+            position: relative;
+            z-index: 1;
         }
 
-        .mini-stat, .empty-metrics div {
+        .mini-stat,
+        .empty-metrics div {
+            min-height: 94px;
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.85rem;
-            background: rgba(255,255,255,0.04);
+            border-radius: var(--radius);
+            padding: 0.86rem;
+            background: rgba(10, 20, 40, 0.58);
+            backdrop-filter: blur(16px);
         }
 
-        .mini-stat span, .empty-metrics span, .muted-label {
+        .mini-stat span,
+        .empty-metrics span,
+        .muted-label {
             display: block;
+            color: var(--muted-2);
+            font-size: 0.76rem;
+            font-weight: 750;
+            margin-bottom: 0.26rem;
+            text-transform: uppercase;
+        }
+
+        .mini-stat strong,
+        .empty-metrics strong {
+            color: #FFFFFF;
+            font-size: 1rem;
+            line-height: 1.2;
+        }
+
+        .top-action-title {
             color: var(--muted);
-            font-size: 0.78rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .mini-stat strong, .empty-metrics strong {
-            color: #ffffff;
-            font-size: 0.98rem;
-        }
-
-        .section-kicker, .panel-title, .sidebar-title, .sidebar-section {
-            color: #e9fbff;
-            font-weight: 800;
-            letter-spacing: 0;
-        }
-
-        .section-kicker {
-            margin: 1rem 0 0.55rem;
             font-size: 0.86rem;
-            text-transform: uppercase;
-            color: #96f2e7;
+            font-weight: 750;
+            margin: -0.25rem 0 0.55rem;
         }
 
-        .sidebar-title {
-            font-size: 1.25rem;
-            margin-bottom: 0.25rem;
+        .run-card,
+        .success-banner,
+        .technician-hero {
+            border-radius: var(--radius);
+            padding: 1rem 1.1rem;
         }
 
-        .sidebar-section {
-            margin: 1rem 0 0.55rem;
-            font-size: 0.85rem;
-            color: #96f2e7;
-            text-transform: uppercase;
+        .run-card h3,
+        .preview-card h3,
+        .panel-title,
+        .baseline-panel-title,
+        .export-title,
+        .route-step strong,
+        .tech-job-card h3,
+        .success-banner strong,
+        .dispatch-baseline-hero strong,
+        .technician-hero strong {
+            color: #FFFFFF;
         }
 
-        .source-card {
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.85rem;
-            background: rgba(255,255,255,0.04);
-            margin-top: 0.75rem;
-        }
-
-        .source-card strong, .source-card span {
-            display: block;
-        }
-
-        .source-card span {
-            color: var(--muted);
-            font-size: 0.88rem;
-            margin-top: 0.25rem;
-        }
-
-        .run-card {
-            border-radius: 8px;
-            padding: 1rem 1.15rem;
-        }
-
-        .run-card h3 {
-            margin: 0.2rem 0;
-            color: #ffffff;
-        }
+        .run-card h3 { margin: 0.2rem 0 0.24rem; }
 
         .empty-state {
             display: grid;
-            grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
-            gap: 1.5rem;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: 1.1rem;
             align-items: center;
-            padding: 1.5rem;
-            border-radius: 8px;
+            padding: clamp(1rem, 3vw, 1.6rem);
+            border-radius: var(--radius);
             margin-bottom: 1rem;
         }
 
         .empty-state h2 {
-            color: #ffffff;
-            font-size: clamp(1.55rem, 3vw, 2.4rem);
-            margin: 0.7rem 0 0.45rem;
+            color: #FFFFFF;
+            font-size: clamp(1.55rem, 4vw, 2.7rem);
+            line-height: 1.05;
+            margin: 0.75rem 0 0.5rem;
         }
 
         .empty-metrics {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
+            gap: 0.7rem;
         }
 
-        .empty-metrics strong {
-            font-size: 1.55rem;
-        }
+        .empty-metrics strong { font-size: 1.55rem; }
 
         .preview-card {
             min-height: 285px;
-            border-radius: 8px;
-            padding: 1.1rem;
-            transition: transform 140ms ease, border-color 140ms ease;
+            border-radius: var(--radius);
+            padding: 1rem;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
         }
 
-        .preview-card:hover {
+        .preview-card:hover,
+        .tech-job-card:hover,
+        .baseline-action:hover {
             transform: translateY(-2px);
-            border-color: rgba(32, 199, 179, 0.45);
-        }
-
-        .preview-card h3 {
-            margin: 0.65rem 0 0.35rem;
-            color: #ffffff;
+            border-color: var(--border-strong);
+            background: linear-gradient(135deg, var(--glass-hover), rgba(226, 232, 240, 0.055)), var(--panel);
         }
 
         .preview-icon {
             width: 2.4rem;
             height: 2.4rem;
-            border-radius: 8px;
+            border-radius: var(--radius);
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(59, 130, 246, 0.14);
-            border: 1px solid rgba(140, 200, 255, 0.28);
+            background: rgba(139, 92, 246, 0.16);
+            border: 1px solid rgba(139, 92, 246, 0.34);
+            color: #C4B5FD;
+            font-weight: 900;
+            font-size: 0.72rem;
         }
 
         .sample-row {
             display: flex;
             justify-content: space-between;
-            gap: 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            gap: 0.8rem;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.09);
             padding: 0.55rem 0;
             color: var(--muted);
         }
 
-        .sample-row strong {
-            color: #96f2e7;
-        }
+        .sample-row strong { color: var(--teal); }
 
-        .risk-bar {
+        .risk-bar,
+        .timeline {
             position: relative;
-            height: 2.15rem;
-            border-radius: 8px;
-            background: rgba(255,255,255,0.06);
+            border-radius: var(--radius);
+            background: rgba(226, 232, 240, 0.075);
             overflow: hidden;
-            margin-top: 0.7rem;
         }
 
-        .risk-bar span {
+        .risk-bar { height: 2.15rem; margin-top: 0.7rem; }
+        .timeline { height: 2rem; margin-top: 0.75rem; }
+
+        .risk-bar span,
+        .timeline span {
             display: block;
             height: 100%;
-            background: linear-gradient(90deg, #20c7b3, #3b82f6);
+            background: linear-gradient(90deg, var(--teal), var(--purple));
+        }
+
+        .timeline span {
+            position: absolute;
+            top: 0.38rem;
+            bottom: 0.38rem;
+            height: auto;
+            border-radius: 999px;
         }
 
         .risk-bar label {
@@ -1829,145 +1928,98 @@ def inject_styles() -> None:
             display: flex;
             align-items: center;
             padding-left: 0.75rem;
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 0.86rem;
-        }
-
-        .timeline {
-            height: 2rem;
-            position: relative;
-            background: rgba(255,255,255,0.06);
-            border-radius: 8px;
-            margin-top: 0.75rem;
-        }
-
-        .timeline span {
-            position: absolute;
-            top: 0.38rem;
-            bottom: 0.38rem;
-            border-radius: 999px;
-            background: linear-gradient(90deg, #20c7b3, #8cc8ff);
-        }
-
-        .success-banner {
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-            border-radius: 8px;
-            padding: 1rem 1.15rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .success-banner span {
-            color: #96f2e7;
+            color: #FFFFFF;
             font-weight: 800;
+            font-size: 0.84rem;
         }
 
-        .success-banner strong {
-            color: #ffffff;
-            font-size: 1.05rem;
-        }
-
+        /* Dispatch baseline: first result area becomes the executive landing view. */
         .dispatch-baseline-hero {
-            border-radius: 8px;
-            padding: 1.2rem 1.35rem;
-            margin: 0.4rem 0 0.9rem;
+            display: grid;
+            gap: 0.25rem;
+            border-color: rgba(0, 245, 212, 0.24);
+            border-radius: var(--radius);
+            padding: clamp(1.05rem, 3vw, 1.55rem);
+            margin: 0.45rem 0 0.9rem;
             background:
-                linear-gradient(135deg, rgba(32, 199, 179, 0.18), rgba(59, 130, 246, 0.10)),
-                var(--card);
+                linear-gradient(135deg, rgba(0, 245, 212, 0.18), rgba(139, 92, 246, 0.14)),
+                rgba(10, 20, 40, 0.78);
+            box-shadow: 0 22px 80px rgba(0, 245, 212, 0.10), var(--shadow-soft);
         }
 
-        .dispatch-baseline-hero span {
-            color: #96f2e7;
-            font-size: 0.78rem;
+        .dispatch-baseline-hero span,
+        .technician-hero span,
+        .success-banner span {
+            color: var(--teal);
+            font-size: 0.76rem;
             font-weight: 850;
             text-transform: uppercase;
         }
 
         .dispatch-baseline-hero strong {
             display: block;
-            color: #ffffff;
-            font-size: clamp(1.55rem, 3vw, 2.35rem);
-            margin-top: 0.2rem;
+            font-size: clamp(1.9rem, 5vw, 3.4rem);
+            line-height: 1;
         }
 
-        .dispatch-baseline-hero p {
-            color: var(--muted);
-            margin: 0.3rem 0 0;
-            line-height: 1.5;
-        }
-
-        .baseline-panel-title {
-            color: #ffffff;
+        .baseline-panel-title,
+        .export-title,
+        .panel-title {
+            font-size: 0.98rem;
             font-weight: 850;
-            margin: 0.2rem 0 0.55rem;
+            margin: 0.85rem 0 0.58rem;
         }
 
         .baseline-action {
             display: grid;
-            grid-template-columns: 2rem minmax(0, 1fr);
-            gap: 0.7rem;
+            grid-template-columns: 2.1rem minmax(0, 1fr);
+            gap: 0.72rem;
             align-items: start;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.045);
-            padding: 0.75rem;
+            border-radius: var(--radius);
+            padding: 0.76rem;
             margin-bottom: 0.65rem;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
         }
 
-        .baseline-action span {
-            width: 2rem;
-            height: 2rem;
+        .baseline-action span,
+        .route-step > span {
             display: inline-flex;
+            width: 2.1rem;
+            height: 2.1rem;
             align-items: center;
             justify-content: center;
             border-radius: 999px;
-            background: rgba(32, 199, 179, 0.18);
-            border: 1px solid rgba(32, 199, 179, 0.34);
-            color: #96f2e7;
-            font-weight: 850;
+            background: rgba(0, 245, 212, 0.12);
+            border: 1px solid rgba(0, 245, 212, 0.28);
+            color: var(--teal);
+            font-weight: 900;
         }
 
         .baseline-action strong {
-            color: #edf8fb;
+            color: var(--text);
             line-height: 1.42;
-            font-size: 0.95rem;
+            font-size: 0.94rem;
         }
 
+        /* Technician view: compact, phone-first operational cards. */
         .technician-hero {
-            border-radius: 8px;
-            padding: 1rem 1.15rem;
-            margin: 0.4rem 0 0.9rem;
             background:
-                linear-gradient(135deg, rgba(150, 242, 231, 0.14), rgba(255, 214, 102, 0.10)),
-                var(--card);
-        }
-
-        .technician-hero span {
-            color: #96f2e7;
-            font-size: 0.78rem;
-            font-weight: 850;
-            text-transform: uppercase;
+                linear-gradient(135deg, rgba(0, 245, 212, 0.14), rgba(255, 179, 0, 0.10)),
+                var(--panel);
         }
 
         .technician-hero strong {
             display: block;
-            color: #ffffff;
-            font-size: clamp(1.45rem, 3vw, 2.1rem);
+            font-size: clamp(1.45rem, 4vw, 2.25rem);
+            line-height: 1.05;
             margin-top: 0.2rem;
         }
 
-        .technician-hero p {
-            color: var(--muted);
-            margin: 0.3rem 0 0;
-            line-height: 1.5;
-        }
-
         .tech-job-card {
-            border-radius: 8px;
+            border-radius: var(--radius);
             padding: 0.95rem;
             margin-bottom: 0.75rem;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
         }
 
         .tech-job-top {
@@ -1976,13 +2028,13 @@ def inject_styles() -> None:
             justify-content: space-between;
             gap: 0.75rem;
             color: var(--muted);
-            font-size: 0.78rem;
-            font-weight: 800;
+            font-size: 0.76rem;
+            font-weight: 850;
         }
 
         .tech-job-top strong {
-            color: #10232f;
-            background: #ffd666;
+            color: #161007;
+            background: var(--amber);
             border-radius: 999px;
             padding: 0.18rem 0.55rem;
             min-width: 2.4rem;
@@ -1990,516 +2042,180 @@ def inject_styles() -> None:
         }
 
         .tech-job-card h3 {
-            color: #ffffff;
-            font-size: 1.05rem;
+            font-size: 1.02rem;
+            line-height: 1.26;
             margin: 0.45rem 0 0.25rem;
-            line-height: 1.28;
-        }
-
-        .tech-job-card p, .tech-job-card small {
-            color: var(--muted);
-            line-height: 1.45;
         }
 
         .tech-action {
-            border-left: 3px solid #20c7b3;
-            padding: 0.55rem 0.7rem;
+            border-left: 3px solid var(--teal);
+            padding: 0.56rem 0.7rem;
             margin: 0.7rem 0 0.45rem;
-            background: rgba(32, 199, 179, 0.08);
-            border-radius: 0 8px 8px 0;
-            color: #edf8fb;
+            background: rgba(0, 245, 212, 0.08);
+            border-radius: 0 var(--radius) var(--radius) 0;
+            color: var(--text);
             font-weight: 750;
         }
 
         .route-step {
             display: grid;
-            grid-template-columns: 2rem minmax(0, 1fr);
+            grid-template-columns: 2.1rem minmax(0, 1fr);
             gap: 0.65rem;
             align-items: start;
-            margin-bottom: 0.6rem;
+            margin-bottom: 0.65rem;
         }
 
-        .route-step > span {
-            width: 2rem;
-            height: 2rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 999px;
-            background: rgba(59, 130, 246, 0.18);
-            border: 1px solid rgba(140, 200, 255, 0.28);
-            color: #edf8fb;
-            font-weight: 850;
-        }
+        .route-step strong,
+        .route-step small { display: block; }
+        .route-step small { margin-top: 0.14rem; }
 
-        .route-step strong, .route-step small {
-            display: block;
-        }
-
-        .route-step strong {
-            color: #ffffff;
-            line-height: 1.2;
-        }
-
-        .route-step small {
-            color: var(--muted);
-            line-height: 1.35;
-            margin-top: 0.15rem;
-        }
-
-        .export-title {
-            color: #ffffff;
-            font-weight: 800;
-            margin-bottom: 0.35rem;
-        }
-
-        .panel-title {
-            margin: 0.8rem 0 0.6rem;
-            font-size: 1.05rem;
-        }
-
+        /* Streamlit component restyling: buttons, metrics, tabs, dataframes, inputs. */
         div[data-testid="stMetric"] {
-            background: rgba(19, 35, 50, 0.82);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius);
             padding: 1rem;
-            box-shadow: 0 12px 34px rgba(0,0,0,0.18);
+            background: linear-gradient(135deg, rgba(226, 232, 240, 0.095), rgba(226, 232, 240, 0.045));
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(18px) saturate(145%);
         }
 
-        div[data-testid="stMetric"] label, div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-            color: #edf8fb;
+        div[data-testid="stMetric"] label,
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            color: var(--text);
         }
 
-        .stButton > button, .stDownloadButton > button {
-            border-radius: 8px;
-            min-height: 2.75rem;
-            font-weight: 750;
-            border: 1px solid rgba(32, 199, 179, 0.24);
-            transition: transform 140ms ease, box-shadow 140ms ease;
+        div[data-testid="stMetricDelta"] { color: var(--teal); }
+
+        .stButton > button,
+        .stDownloadButton > button {
+            border-radius: var(--radius);
+            min-height: 2.72rem;
+            border: 1px solid rgba(0, 245, 212, 0.24);
+            background: rgba(226, 232, 240, 0.075);
+            color: var(--text);
+            font-weight: 800;
+            transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
         }
 
-        .stButton > button:hover, .stDownloadButton > button:hover {
+        .stButton > button:hover,
+        .stDownloadButton > button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 10px 28px rgba(32, 199, 179, 0.16);
+            border-color: rgba(0, 245, 212, 0.52);
+            background: rgba(0, 245, 212, 0.10);
+            box-shadow: 0 12px 34px rgba(0, 245, 212, 0.13);
+        }
+
+        .stButton > button[kind="primary"] {
+            color: #06111F;
+            border-color: rgba(0, 245, 212, 0.60);
+            background: linear-gradient(135deg, var(--teal), #7DD3FC);
+            box-shadow: 0 16px 44px rgba(0, 245, 212, 0.18);
         }
 
         .stTabs [data-baseweb="tab-list"] {
             gap: 0.35rem;
             border-bottom: 1px solid var(--border);
+            overflow-x: auto;
         }
 
         .stTabs [data-baseweb="tab"] {
-            border-radius: 8px 8px 0 0;
-            padding: 0.75rem 1rem;
+            min-height: 2.6rem;
+            border-radius: var(--radius) var(--radius) 0 0;
+            padding: 0.72rem 0.95rem;
+            color: var(--muted);
+            font-weight: 780;
+        }
+
+        .stTabs [aria-selected="true"] {
+            color: var(--teal) !important;
+            background: rgba(0, 245, 212, 0.08);
+            border-bottom: 2px solid var(--teal);
+        }
+
+        [data-testid="stDataFrame"],
+        [data-testid="stTable"],
+        div[data-testid="stExpander"],
+        div[data-testid="stStatusWidget"],
+        div[data-testid="stFileUploader"] section,
+        textarea,
+        input {
+            border-color: var(--border) !important;
+            border-radius: var(--radius) !important;
         }
 
         [data-testid="stDataFrame"] {
-            border: 1px solid var(--border);
-            border-radius: 8px;
             overflow: hidden;
+            box-shadow: var(--shadow-soft);
         }
 
-        @media (prefers-color-scheme: light) {
-=======
+        div[data-testid="stAlert"] {
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: rgba(10, 20, 40, 0.72);
+            color: var(--text);
+        }
 
-def inject_brand_css() -> None:
-    """Apply lightweight brand styling without adding frontend dependencies."""
-    st.markdown(
-        """
-        <style>
->>>>>>> dev/ai-integration
-            :root {
-                --opsforge-blue: #0f4c81;
-                --opsforge-blue-dark: #0b2545;
-                --opsforge-green: #0f9f6e;
-                --opsforge-mist: #eef7f4;
-                --opsforge-border: #d8e2ea;
-                --opsforge-text: #102033;
-            }
-            .main .block-container {
-                padding-top: 1.25rem;
-                padding-bottom: 2rem;
-                max-width: 1280px;
-            }
-            [data-testid="stMetric"] {
-                background: #ffffff;
-                border: 1px solid var(--opsforge-border);
-                border-radius: 8px;
-                padding: 0.9rem 1rem;
-                box-shadow: 0 6px 18px rgba(15, 76, 129, 0.08);
-            }
-<<<<<<< HEAD
+        div[data-testid="stProgress"] > div > div {
+            background: linear-gradient(90deg, var(--teal), var(--purple));
+        }
 
-            .app-hero h1, .empty-state h2, .preview-card h3, .run-card h3,
-            .mini-stat strong, .empty-metrics strong, .success-banner strong,
-            .dispatch-baseline-hero strong, .technician-hero strong, .tech-job-card h3,
-            .section-kicker, .panel-title, .sidebar-title, .sidebar-section,
-            .export-title, .route-step strong, .baseline-panel-title, .baseline-action strong {
-                color: #10232f;
-=======
-            .opsforge-hero {
-                background: linear-gradient(135deg, #0b2545 0%, #0f4c81 58%, #0f9f6e 100%);
-                border-radius: 8px;
-                color: #ffffff;
-                padding: 1.35rem 1.5rem;
-                margin-bottom: 1rem;
->>>>>>> dev/ai-integration
+        .source-card {
+            border-radius: var(--radius);
+            padding: 0.85rem;
+            margin-top: 0.75rem;
+        }
+
+        .source-card strong { color: #FFFFFF; display: block; }
+        .source-card span { display: block; margin-top: 0.25rem; font-size: 0.86rem; }
+
+        /* Motion and accessibility: subtle polish, disabled for reduced motion users. */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
             }
-            .opsforge-brand-row {
-                display: flex;
-                align-items: center;
-                gap: 0.85rem;
-            }
-            .opsforge-mark {
-                align-items: center;
-                background: rgba(255, 255, 255, 0.14);
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                border-radius: 8px;
-                display: inline-flex;
-                font-weight: 800;
-                height: 44px;
-                justify-content: center;
-                letter-spacing: 0;
-                width: 44px;
-            }
-            .opsforge-hero h1 {
-                font-size: 2rem;
-                line-height: 1.1;
-                margin: 0;
-            }
-            .opsforge-hero p {
-                color: rgba(255, 255, 255, 0.86);
-                margin: 0.35rem 0 0;
-            }
-            .opsforge-strip {
-                background: var(--opsforge-mist);
-                border: 1px solid #cfe8df;
-                border-radius: 8px;
-                color: var(--opsforge-text);
-                padding: 0.8rem 1rem;
-            }
-            .opsforge-section-label {
-                color: var(--opsforge-blue-dark);
-                font-size: 0.82rem;
-                font-weight: 750;
-                letter-spacing: 0;
-                margin-bottom: 0.35rem;
-                text-transform: uppercase;
-            }
-<<<<<<< HEAD
+        }
+
+        /* Responsive rules: mobile-first field technician readability. */
+        @media (max-width: 900px) {
+            .block-container { padding: 0.9rem 0.9rem 2.4rem; }
+            .app-hero,
+            .empty-state { grid-template-columns: 1fr; }
+            .hero-stat-grid,
+            .empty-metrics { grid-template-columns: 1fr; }
+            .mini-stat,
+            .empty-metrics div { min-height: auto; }
         }
 
         @media (max-width: 640px) {
-            .block-container {
-                padding: 0.75rem 0.75rem 2rem;
-            }
-
-            .app-hero, .empty-state, .run-card, .preview-card, .success-banner, .dispatch-baseline-hero, .technician-hero, .tech-job-card {
-                padding: 0.95rem;
-            }
-
-            .app-hero {
-                gap: 1rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .section-kicker {
-                margin-top: 0.8rem;
-            }
-
-            .stTabs [data-baseweb="tab"] {
-                padding: 0.65rem 0.7rem;
-            }
-
-            .stButton > button, .stDownloadButton > button {
-                min-height: 2.55rem;
-            }
+            .block-container { padding: 0.7rem 0.65rem 2rem; }
+            .app-hero,
+            .empty-state,
+            .run-card,
+            .preview-card,
+            .success-banner,
+            .dispatch-baseline-hero,
+            .technician-hero,
+            .tech-job-card { padding: 0.92rem; }
+            .app-hero { min-height: auto; }
+            .app-hero h1 { font-size: 2.4rem; max-width: none; }
+            .stTabs [data-baseweb="tab"] { padding: 0.62rem 0.7rem; }
+            .stButton > button,
+            .stDownloadButton > button { min-height: 2.55rem; }
+            div[data-testid="column"] { width: 100% !important; flex: 1 1 100% !important; }
         }
-=======
->>>>>>> dev/ai-integration
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-
-@st.cache_data(show_spinner=False)
-def build_demo_dataset(scenario: str = "Busy Monday") -> Dict[str, pd.DataFrame]:
-    """Return synthetic HVAC operations data that works without MongoDB."""
-    scenario_multiplier = {
-        "Busy Monday": 1.0,
-        "Heat Wave": 1.24,
-        "AR Cleanup": 0.88,
-    }.get(scenario, 1.0)
-
-    jobs = pd.DataFrame(
-        [
-            {
-                "job_id": "JOB-001",
-                "customer": "Smith Residence",
-                "city": "Nashua",
-                "priority": "Emergency",
-                "risk": "Missing HP-001",
-                "eta_window": "8:00-10:00",
-            },
-            {
-                "job_id": "JOB-005",
-                "customer": "Johnson Family",
-                "city": "Hudson",
-                "priority": "High",
-                "risk": "Condenser capacitor low stock",
-                "eta_window": "10:30-12:00",
-            },
-            {
-                "job_id": "JOB-003",
-                "customer": "XYZ Office",
-                "city": "Merrimack",
-                "priority": "Standard",
-                "risk": "AR balance open",
-                "eta_window": "1:00-3:00",
-            },
-        ]
-    )
-    inventory = pd.DataFrame(
-        [
-            {
-                "sku": "HP-001",
-                "part": "Heat pump control board",
-                "on_hand": 2,
-                "reorder_point": 5,
-                "status": "Critical",
-            },
-            {
-                "sku": "CAP-5TON",
-                "part": "5 ton capacitor",
-                "on_hand": 4,
-                "reorder_point": 8,
-                "status": "Low",
-            },
-            {
-                "sku": "FILTER-20X25",
-                "part": "20x25 filter",
-                "on_hand": 32,
-                "reorder_point": 18,
-                "status": "Healthy",
-            },
-        ]
-    )
-    ar = pd.DataFrame(
-        [
-            {
-                "invoice": "INV-001",
-                "customer": "Smith Residence",
-                "amount": int(1250 * scenario_multiplier),
-                "days_overdue": 14,
-                "next_action": "Send owner-approved reminder",
-            },
-            {
-                "invoice": "INV-003",
-                "customer": "XYZ Office",
-                "amount": int(2100 * scenario_multiplier),
-                "days_overdue": 31,
-                "next_action": "Escalate with service history",
-            },
-        ]
-    )
-    return {"jobs": jobs, "inventory": inventory, "ar": ar}
-
-
-def build_simulation_result(dataset: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
-    """Build the deterministic demo result shown after the agent run."""
-    overdue_total = int(dataset["ar"]["amount"].sum())
-    critical_parts = int((dataset["inventory"]["status"] != "Healthy").sum())
-    total_monthly_savings = 8400 + (critical_parts * 250)
-    return {
-        "total_monthly_savings": total_monthly_savings,
-        "downtime_reduction": 0.42,
-        "wasted_rolls_reduction": 0.30,
-        "ar_improvement": max(12000, overdue_total * 3),
-        "inventory_turns": 0.25,
-        "agent_trace": [
-            "LeadArchitect assembled the Monday operating plan.",
-            "PartsAvailabilityChecker flagged HP-001 and CAP-5TON before dispatch.",
-            "SchedulerOptimizer resequenced three priority stops around parts risk.",
-            "ARCollector prepared two follow-up actions for overdue balances.",
-            "RiskAssessor summarized downtime, cashflow, and first-visit-completion risk.",
-        ],
-    }
-
-
-def _ensure_session_defaults() -> None:
-    if "scenario" not in st.session_state:
-        st.session_state.scenario = "Busy Monday"
-    if "demo_loaded" not in st.session_state:
-        st.session_state.demo_loaded = False
-    if "dataset" not in st.session_state:
-        st.session_state.dataset = build_demo_dataset(st.session_state.scenario)
-    if "simulation" not in st.session_state:
-        st.session_state.simulation = None
-
-
-def render_sidebar() -> None:
-    """Render the basic controls for the Phase 1 demo loop."""
-    st.sidebar.markdown("### HVAC OpsForge")
-    st.sidebar.caption(APP_SUBTITLE)
-    scenario = st.sidebar.selectbox(
-        "Demo scenario",
-        ["Busy Monday", "Heat Wave", "AR Cleanup"],
-        index=["Busy Monday", "Heat Wave", "AR Cleanup"].index(st.session_state.scenario),
-    )
-    if scenario != st.session_state.scenario:
-        st.session_state.scenario = scenario
-        st.session_state.dataset = build_demo_dataset(scenario)
-        st.session_state.simulation = None
-        st.session_state.demo_loaded = False
-
-    st.sidebar.checkbox(
-        "Use Live Mongo",
-        value=False,
-        help="Off keeps the demo fully self-contained with synthetic HVAC data.",
-        key="use_live_mongo",
-    )
-    st.sidebar.checkbox("Show Agent Trace", value=True, key="show_agent_trace")
-
-    if st.sidebar.button("Load Demo Company", use_container_width=True):
-        st.session_state.dataset = build_demo_dataset(st.session_state.scenario)
-        st.session_state.demo_loaded = True
-        st.session_state.simulation = None
-        st.sidebar.success("Demo company loaded.")
-
-    if st.sidebar.button("Run Multi-Agent Dispatch", use_container_width=True):
-        dataset = st.session_state.dataset
-        with st.spinner("Lead Architect is coordinating specialist agents..."):
-            st.session_state.simulation = build_simulation_result(dataset)
-            st.session_state.demo_loaded = True
-        st.sidebar.success("Agent run complete.")
-
-
-def render_hero() -> None:
-    """Render the branded top section."""
-    st.markdown(
-        f"""
-        <section class="opsforge-hero">
-            <div class="opsforge-brand-row">
-                <div class="opsforge-mark">AF</div>
-                <div>
-                    <h1>{APP_TITLE}</h1>
-                    <p>{APP_SUBTITLE}</p>
-                </div>
-            </div>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        """
-        <div class="opsforge-strip">
-            Load a synthetic HVAC company, run the Lead Architect orchestration, and inspect the
-            specialist outputs that protect first-visit completion, inventory turns, routes, and cashflow.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_kpi_row(simulation: Dict[str, Any] | None) -> None:
-    """Render business outcome metrics for the current demo state."""
-    sim = simulation or {
-        "total_monthly_savings": 0,
-        "downtime_reduction": 0.0,
-        "wasted_rolls_reduction": 0.0,
-        "ar_improvement": 0,
-        "inventory_turns": 0.0,
-    }
-    col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Monthly Savings", f"${sim['total_monthly_savings']:,}", "$8.4k target")
-    col2.metric("Downtime", f"-{sim['downtime_reduction'] * 100:.0f}%", "owner-visible")
-    col3.metric("Wasted Trips", f"-{sim['wasted_rolls_reduction'] * 100:.0f}%", "fewer rolls")
-    col4.metric("AR Cashflow", f"+${sim['ar_improvement']:,}", "faster collection")
-    col5.metric("Inventory Turns", f"+{sim['inventory_turns'] * 100:.0f}%", "leaner stock")
-
-
-def render_agent_console(simulation: Dict[str, Any] | None) -> None:
-    """Show the multi-agent roster and the current synthetic execution state."""
-    st.subheader("Agent Command Center")
-    st.caption("Lead Architect coordinates specialist agents while the owner stays in control.")
-    roster = pd.DataFrame(
-        [
-            {"Agent": "LeadArchitect", "Role": "Plans and coordinates the workflow", "Status": "Ready"},
-            {"Agent": "PartsAvailabilityChecker", "Role": "Validates parts before dispatch", "Status": "Ready"},
-            {"Agent": "SchedulerOptimizer", "Role": "Sequences stops by risk and location", "Status": "Ready"},
-            {"Agent": "ARCollector", "Role": "Prepares overdue invoice follow-ups", "Status": "Ready"},
-            {"Agent": "RiskAssessor", "Role": "Flags downtime, cashflow, and job risk", "Status": "Ready"},
-        ]
-    )
-    if simulation:
-        roster["Status"] = "Completed"
-    st.dataframe(roster, use_container_width=True, hide_index=True)
-
-    if simulation and st.session_state.get("show_agent_trace", True):
-        st.markdown('<div class="opsforge-section-label">Execution Trace</div>', unsafe_allow_html=True)
-        for item in simulation["agent_trace"]:
-            st.info(item)
-
-
-def render_operations_tabs(dataset: Dict[str, pd.DataFrame]) -> None:
-    """Render basic interactive tables for the Phase 1 demo."""
-    jobs_tab, inventory_tab, ar_tab = st.tabs(["Dispatch", "Inventory", "AR Follow-up"])
-    with jobs_tab:
-        st.subheader("Priority Dispatch Board")
-        st.dataframe(dataset["jobs"], use_container_width=True, hide_index=True)
-    with inventory_tab:
-        st.subheader("Parts Availability Watchlist")
-        st.dataframe(dataset["inventory"], use_container_width=True, hide_index=True)
-        st.caption("Focus: prevent failed first visits by surfacing low-stock parts before the truck rolls.")
-    with ar_tab:
-        st.subheader("Accounts Receivable Follow-up Queue")
-        st.dataframe(dataset["ar"], use_container_width=True, hide_index=True)
-        st.caption("Focus: protect cashflow with owner-reviewed next actions.")
-
-
-def owner_roi_simulator() -> None:
-    """Render the branded owner ROI simulator for synthetic HVAC demo data."""
-    dataset = st.session_state.dataset
-    simulation = st.session_state.simulation
-    render_hero()
-
-    if not st.session_state.demo_loaded:
-        st.warning("Start in the sidebar: load the demo company, then run the multi-agent dispatch.")
-
-    render_kpi_row(simulation)
-    st.divider()
-    render_agent_console(simulation)
-    st.divider()
-    render_operations_tabs(dataset)
-
-
-def parts_availability_dashboard() -> None:
-    """Use Live Mongo toggle, validated schemas from PROJECT_MEMORY.md canonical VP, and 30-50% less downtime framing."""
-    st.title("HVAC Parts Availability Command Center")
-    st.checkbox(
-        "Use Live Mongo (validated schemas from PROJECT_MEMORY.md canonical VP)",
-        value=st.session_state.get("use_live_mongo", False),
-    )
-    st.caption(
-        "Parts visibility protects first-visit completion, reduces wasted rolls, and supports the 30-50% downtime reduction target."
-    )
-    dataset = st.session_state.get("dataset", build_demo_dataset())
-    st.dataframe(dataset["inventory"], use_container_width=True, hide_index=True)
-    st.success("Parts tab maintains the 25% inventory optimization target from the canonical metrics.")
-
-
-def main() -> None:
-    configure_page()
-    inject_brand_css()
-    _ensure_session_defaults()
-    render_sidebar()
-
-    tab1, tab2 = st.tabs(["Owner ROI Simulator", "Parts Availability"])
-    with tab1:
-        owner_roi_simulator()
-    with tab2:
-        parts_availability_dashboard()
 
 
 if __name__ == "__main__":

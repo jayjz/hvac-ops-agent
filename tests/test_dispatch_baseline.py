@@ -4,8 +4,12 @@ from datetime import datetime, timedelta
 
 from core.dispatch_baseline import (
     assemble_dispatch_baseline,
+    build_quickbooks_export_tables,
     prioritize_ar_queue,
+    render_quickbooks_csv_exports,
+    render_quickbooks_excel_export,
     render_dispatch_baseline_markdown,
+    save_quickbooks_exports,
 )
 
 
@@ -80,6 +84,7 @@ def test_assemble_dispatch_baseline_outputs_reports() -> None:
     assert baseline["roi_summary"]["estimated_value"] > 0
     assert "# HVAC OpsForge Dispatch Baseline" in baseline["reports"]["markdown"]
     assert '"report_type": "Dispatch Baseline"' in baseline["reports"]["json"]
+    assert baseline["parts_order_queue"][0]["sku"] == "FILTER-01"
 
 
 def test_render_markdown_includes_actions_and_roi() -> None:
@@ -125,3 +130,60 @@ def test_render_markdown_includes_actions_and_roi() -> None:
     assert "## Executive Summary" in markdown
     assert "Estimated ROI: 1.5x" in markdown
     assert "Approve baseline." in markdown
+
+
+def test_quickbooks_exports_map_common_fields(tmp_path) -> None:
+    baseline = assemble_dispatch_baseline(
+        goals=["Improve dispatch reliability"],
+        project_data={
+            "source": "synthetic",
+            "schedule": [{"task": "Replace filters", "duration_days": 2, "predecessors": []}],
+        },
+        execution_plan=[],
+        inventory_data={
+            "recommended_orders": [
+                {
+                    "sku": "FILTER-01",
+                    "part_name": "Air Filter",
+                    "quantity": 12,
+                    "urgency": "high",
+                    "estimated_cost": 155.88,
+                    "vendor": "ABC Supply",
+                }
+            ]
+        },
+        risk_data={},
+        schedule_data={},
+        ar_data={
+            "overdue_invoices": [
+                {
+                    "invoice_id": "INV-001",
+                    "customer_name": "ABC Manufacturing",
+                    "amount": 4500,
+                    "invoice_date": datetime(2026, 5, 1),
+                    "due_date": datetime(2026, 6, 1),
+                }
+            ]
+        },
+        data_source="synthetic",
+    )
+
+    tables = build_quickbooks_export_tables(baseline)
+    assert tables["invoices"][0]["Customer"] == "ABC Manufacturing"
+    assert tables["invoices"][0]["Invoice No"] == "INV-001"
+    assert tables["invoices"][0]["Due Date"] == "2026-06-01"
+    assert tables["schedule"][0]["Product/Service"] == "HVAC Service"
+    assert tables["parts"][0]["SKU"] == "FILTER-01"
+    assert tables["parts"][0]["Preferred Vendor"] == "ABC Supply"
+
+    csv_exports = render_quickbooks_csv_exports(baseline)
+    assert "Customer,Invoice No,Invoice Date,Due Date" in csv_exports["quickbooks_invoices.csv"]
+    assert "Name,SKU,Type,Sales Price / Rate" in csv_exports["quickbooks_parts.csv"]
+    assert render_quickbooks_excel_export(baseline).startswith(b"PK")
+
+    paths = save_quickbooks_exports(baseline, tmp_path)
+    assert (tmp_path / "quickbooks_invoices.csv").exists()
+    assert (tmp_path / "quickbooks_schedule.csv").exists()
+    assert (tmp_path / "quickbooks_parts.csv").exists()
+    assert (tmp_path / "quickbooks_dispatch_baseline.xlsx").exists()
+    assert paths["quickbooks_dispatch_baseline.xlsx"].endswith(".xlsx")
