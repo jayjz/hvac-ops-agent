@@ -11,16 +11,9 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, MutableMapping, Optional
 
-from core.agents import (
-    AgentContext,
-    AgentResult,
-    LeadArchitect,
-)
-<<<<<<< HEAD
+from core.agents import AgentContext, LeadArchitect
 from core.dispatch_baseline import assemble_dispatch_baseline
-=======
 from core.agents.specialists import SPECIALISTS
->>>>>>> dev/ai-integration
 from core.tools.mongodb_tools import mongodb_tools
 
 logger = logging.getLogger("hvac_opsforge.orchestrator")
@@ -91,162 +84,29 @@ async def run_pm_job(
             raise RuntimeError("; ".join(architect_result.errors))
 
         project_data = architect_result.data["project_data"]
-<<<<<<< HEAD
-        execution_plan = architect_result.data["execution_plan"]
+        execution_plan = architect_result.data.get("execution_plan", [])
         specialist_errors: List[Dict[str, Any]] = []
 
-        async def run_specialist(
-            agent,
-            payload: Dict[str, Any],
-            fallback_data: Dict[str, Any],
-        ) -> AgentResult:
-            try:
-                result = await agent.run(context, payload)
-            except Exception as exc:
-                logger.exception("Specialist %s raised unexpectedly", agent.name)
-                result = AgentResult(agent=agent.name, success=False, errors=[str(exc)])
-            if result.success:
-                return result
-            errors = result.errors or [f"{agent.name} failed without details."]
-            logger.error(
-                "Specialist %s failed; continuing with fallback data: %s",
-                agent.name,
-                errors,
-            )
-            specialist_errors.append({"agent": agent.name, "errors": errors})
-            return AgentResult(
-                agent=agent.name,
-                success=False,
-                data=fallback_data,
-                errors=errors,
-                warnings=["Fallback data used so the demo workflow could continue."],
-            )
-
-        # Step 1: Inventory forecasting with MongoDB integration
-        inventory = InventoryForecasterAgent(**base_common, progress_callback=scoped_progress(0.20, 0.40))
-        inventory_result = await run_specialist(
-            inventory,
-            {
-                "project_data": project_data,
-                "execution_plan": execution_plan,
-                "mongodb": mongodb_tools,
-            },
-            {
-                "requirements_register": [],
-                "inventory_forecast": {},
-                "recommended_orders": [],
-                "upcoming_jobs_count": 0,
-                "low_stock_items": 0,
-            },
-        )
-
-        # Step 2: Risk assessment using MongoDB data
-        risk = RiskAssessorAgent(**base_common, progress_callback=scoped_progress(0.40, 0.60))
-        risk_result = await run_specialist(
-            risk,
-            {
-                **inventory_result.data,
-                "project_data": project_data,
-                "mongodb": mongodb_tools,
-            },
-            {"risk_register": []},
-        )
-
-        # Step 3: Schedule optimization with technician data from MongoDB
-        scheduler = SchedulerOptimizerAgent(**base_common, progress_callback=scoped_progress(0.60, 0.75))
-        schedule_result = await run_specialist(
-            scheduler,
-            {
-                **inventory_result.data,
-                **risk_result.data,
-                "project_data": project_data,
-                "mongodb": mongodb_tools,
-            },
-            {
-                "optimized_schedule": {
-                    "method": "fallback",
-                    "duration_days": None,
-                    "tasks": [],
-                    "critical_path": [],
-                }
-            },
-        )
-
-        # Step 4: AR collection using MongoDB invoices
-        ar_collector = ARCollectorAgent(**base_common, progress_callback=scoped_progress(0.75, 0.90))
-        ar_result = await run_specialist(
-            ar_collector,
-            {
-                **inventory_result.data,
-                **risk_result.data,
-                **schedule_result.data,
-                "mongodb": mongodb_tools,
-            },
-            {
-                "pm_report": {
-                    "summary": "AR collector unavailable; workflow continued with remaining specialist outputs.",
-                    "requirements_count": len(
-                        inventory_result.data.get("requirements_register", [])
-                    ),
-                    "high_risk_count": len(
-                        [
-                            risk
-                            for risk in risk_result.data.get("risk_register", [])
-                            if risk.get("severity") == "High"
-                        ]
-                    ),
-                    "planned_duration_days": schedule_result.data.get(
-                        "optimized_schedule", {}
-                    ).get("duration_days"),
-                    "critical_path": schedule_result.data.get(
-                        "optimized_schedule", {}
-                    ).get("critical_path", []),
-                    "ar_summary": {
-                        "overdue_count": 0,
-                        "total_amount": 0,
-                        "oldest_invoice_days": 0,
-                    },
-                    "recommended_actions": [
-                        "Review AR collector logs before sending invoice reminders."
-                    ],
-                    "risk_chart_path": None,
-                },
-                "overdue_invoices": [],
-                "total_overdue_amount": 0,
-                "invoices_count": 0,
-            },
-        )
-
-        # Compile all results
-=======
-        execution_plan = architect_result.data.get("execution_plan", {})
-
-        # === 100% DYNAMIC DISPATCH VIA REGISTRY (Phase 1) ===
-        # Default sequence from plan or standard HVAC flow. JTBD: supports dynamic
-        # addition of PartsAvailabilityChecker, reordering agents without code changes.
-        if isinstance(execution_plan, list):
-            agent_sequence = [step.get("specialist") for step in execution_plan if isinstance(step, dict) and "specialist" in step]
-        else:
-            agent_sequence = execution_plan.get("steps", [])
-        
-        if not any(s in SPECIALISTS for s in agent_sequence):
-            agent_sequence = ["inventory_forecaster", "risk_assessor", "scheduler_optimizer", "ar_collector", "parts_availability_checker"]
-        results: Dict[str, Any] = {}
+        # Dynamic dispatch via registry keeps new specialists plug-and-play while
+        # still providing the dashboard's consolidated dispatch baseline output.
+        agent_sequence = _resolve_agent_sequence(execution_plan)
+        results: Dict[str, Dict[str, Any]] = {}
         prior_data: Dict[str, Any] = {
             "project_data": project_data,
             "execution_plan": execution_plan,
         }
 
-        for i, agent_name in enumerate(agent_sequence):
-            if agent_name not in SPECIALISTS:
+        for index, agent_name in enumerate(agent_sequence):
+            agent_cls = SPECIALISTS.get(agent_name)
+            if agent_cls is None:
                 logger.warning("Unknown specialist %s in plan; skipping.", agent_name)
                 continue
-            agent_cls = SPECIALISTS[agent_name]
-            start_prog = 0.20 + (i * 0.15)
-            end_prog = start_prog + 0.15
+            start_progress = 0.20 + (index * 0.15)
+            end_progress = min(start_progress + 0.15, 0.90)
             agent = agent_cls(
+                name=agent_name,
                 **base_common,
-                progress_callback=scoped_progress(start_prog, min(end_prog, 0.90)),
+                progress_callback=scoped_progress(start_progress, end_progress),
             )
             payload = {
                 **prior_data,
@@ -255,31 +115,31 @@ async def run_pm_job(
             }
             agent_result = await agent.run(context, payload)
             if not agent_result.success:
-                raise RuntimeError(f"{agent_name}: " + "; ".join(agent_result.errors))
-            
-            # Wrap in dict so downstream .get("data", {}) extraction does not crash on the AgentResult object
-            results[agent_name] = {"data": agent_result.data}
-            prior_data.update(agent_result.data or {})
+                errors = agent_result.errors or [
+                    f"{agent_name} failed without details."
+                ]
+                specialist_errors.append({"agent": agent_name, "errors": errors})
+                logger.error("Specialist %s failed: %s", agent_name, errors)
+                continue
 
-        # Compile all results (dynamic)
->>>>>>> dev/ai-integration
+            agent_data = agent_result.data or {}
+            results[agent_name] = {"data": agent_data}
+            prior_data.update(agent_data)
+
+        inventory_data = results.get("inventory_forecaster", {}).get("data", {})
+        risk_data = results.get("risk_assessor", {}).get("data", {})
+        schedule_data = results.get("scheduler_optimizer", {}).get("data", {})
+        ar_data = results.get("ar_collector", {}).get("data", {})
+
         result = {
             "execution_plan": execution_plan,
             "requires_approval": require_approval,
             "specialist_errors": specialist_errors,
             "proposed_actions": {
-                "inventory_orders": results.get("inventory_forecaster", {})
-                .get("data", {})
-                .get("recommended_orders", []),
-                "ar_reminders": results.get("ar_collector", {})
-                .get("data", {})
-                .get("overdue_invoices", []),
-                "schedule_changes": results.get("scheduler_optimizer", {})
-                .get("data", {})
-                .get("optimized_schedule", {}),
-                "risk_mitigations": results.get("risk_assessor", {})
-                .get("data", {})
-                .get("risk_register", []),
+                "inventory_orders": inventory_data.get("recommended_orders", []),
+                "ar_reminders": ar_data.get("overdue_invoices", []),
+                "schedule_changes": schedule_data.get("optimized_schedule", {}),
+                "risk_mitigations": risk_data.get("risk_register", []),
                 "parts_checks": results.get("parts_availability_checker", {}).get(
                     "data", {}
                 ),
@@ -290,10 +150,10 @@ async def run_pm_job(
             goals=goals,
             project_data=project_data,
             execution_plan=execution_plan,
-            inventory_data=inventory_result.data,
-            risk_data=risk_result.data,
-            schedule_data=schedule_result.data,
-            ar_data=ar_result.data,
+            inventory_data=inventory_data,
+            risk_data=risk_data,
+            schedule_data=schedule_data,
+            ar_data=ar_data,
             data_source="mongo_or_fallback",
         )
         result["dispatch_baseline"] = dispatch_baseline
@@ -343,6 +203,55 @@ async def run_pm_job(
             details=f"HVAC OpsForge job failed: {exc}",
         )
         raise
+
+
+def _resolve_agent_sequence(execution_plan: Any) -> List[str]:
+    """Normalize LeadArchitect plans into registered specialist names."""
+    aliases = {
+        "requirements": "inventory_forecaster",
+        "inventory": "inventory_forecaster",
+        "risk": "risk_assessor",
+        "scheduler": "scheduler_optimizer",
+        "schedule": "scheduler_optimizer",
+        "report": "ar_collector",
+        "ar": "ar_collector",
+        "parts": "parts_availability_checker",
+    }
+    default_sequence = [
+        "inventory_forecaster",
+        "risk_assessor",
+        "scheduler_optimizer",
+        "ar_collector",
+        "parts_availability_checker",
+    ]
+
+    raw_steps: List[Any]
+    if isinstance(execution_plan, list):
+        raw_steps = execution_plan
+    elif isinstance(execution_plan, dict):
+        raw_steps = execution_plan.get("steps", [])
+    else:
+        raw_steps = []
+
+    sequence: List[str] = []
+    for step in raw_steps:
+        if isinstance(step, dict):
+            raw_name = step.get("specialist") or step.get("agent") or step.get("name")
+        else:
+            raw_name = step
+        if not raw_name:
+            continue
+        name = aliases.get(str(raw_name), str(raw_name))
+        if name in SPECIALISTS and name not in sequence:
+            sequence.append(name)
+
+    if not sequence:
+        return default_sequence
+
+    for name in default_sequence:
+        if name not in sequence:
+            sequence.append(name)
+    return sequence
 
 
 async def _execute_approved_actions(
