@@ -14,6 +14,10 @@ credentials*
 logs/
 execution_logs/
 *.log.md
+
+
+
+_archive/
 # Python bytecode and environments
 __pycache__/
 *.py[cod]
