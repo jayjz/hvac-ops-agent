@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
@@ -90,6 +90,16 @@ class ScheduleOptimizationResult(BaseModel):
     def round_scores(cls, v: float) -> float:
         return round(v, 2)
 
+# [FLAGSHIP UPGRADE] Added PMJobState schema to securely type and validate orchestrator state writes.
+class PMJobState(BaseModel):
+    """Canonical schema for orchestrator job state persistence."""
+    job_id: str
+    status: str = Field(pattern=r'^(PENDING|RUNNING|AWAITING_APPROVAL|EXECUTING|COMPLETED|FAILED)$')
+    progress: float = Field(ge=0.0, le=1.0)
+    details: str
+    result: Optional[Dict[str, Any]] = None
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
 # Legacy aliases for backward compatibility (Phase 3+)
 PartsAvailabilityRequest = JobPartsRequest
 PartCheckResult = PartsAvailabilityResult
@@ -99,5 +109,6 @@ RequiredPart = ReorderRecommendation
 __all__ = [
     "JobPartsRequest", "PartsAvailabilityResult", "ReorderRecommendation",
     "InventoryItem", "JobDocument", "Invoice", "ARResult", "ScheduleOptimizationResult",
+    "PMJobState", # [FLAGSHIP UPGRADE] Export the new schema
     "PartsAvailabilityRequest", "PartCheckResult", "RequiredPart"
 ]
