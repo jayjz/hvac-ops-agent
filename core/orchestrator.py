@@ -15,6 +15,7 @@ from core.agents import AgentContext, LeadArchitect
 from core.dispatch_baseline import assemble_dispatch_baseline
 from core.agents.specialists import SPECIALISTS
 from core.tools.mongodb_tools import mongodb_tools
+from core.models.parts_schemas import PMJobState # [FLAGSHIP UPGRADE] Schema import
 
 logger = logging.getLogger("hvac_opsforge.orchestrator")
 
@@ -303,7 +304,7 @@ async def _execute_approved_actions(
 
     return execution_results
 
-
+# [FLAGSHIP UPGRADE] Modified to persist state to MongoDB while retaining legacy dict updates
 def _set_job(
     jobs: Optional[MutableMapping[str, Any]],
     job_id: str,
@@ -313,14 +314,28 @@ def _set_job(
     details: Optional[str] = None,
     result: Optional[Dict[str, Any]] = None,
 ) -> None:
-    if jobs is None or job_id not in jobs:
-        return
-    job = jobs[job_id]
-    for key, value in {
-        "status": status,
-        "progress": progress,
-        "details": details,
-        "result": result,
-    }.items():
-        if value is not None and hasattr(job, key):
-            setattr(job, key, value)
+    # 1. Update legacy in-memory state (keeps current async callbacks/workers happy)
+    current_job = None
+    if jobs is not None and job_id in jobs:
+        current_job = jobs[job_id]
+        for key, value in {
+            "status": status,
+            "progress": progress,
+            "details": details,
+            "result": result,
+        }.items():
+            if value is not None and hasattr(current_job, key):
+                setattr(current_job, key, value)
+
+    # 2. Persist to MongoDB using pure Pydantic validation
+    try:
+        validated_state = PMJobState(
+            job_id=job_id,
+            status=status or getattr(current_job, "status", "PENDING"),
+            progress=progress if progress is not None else getattr(current_job, "progress", 0.0),
+            details=details or getattr(current_job, "details", "State updated."),
+            result=result or getattr(current_job, "result", None)
+        )
+        mongodb_tools.upsert_job_state(validated_state)
+    except Exception as e:
+        logger.error("Failed to validate and persist job state to DB: %s", e)

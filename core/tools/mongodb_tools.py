@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-from core.models.parts_schemas import InventoryItem, JobDocument, Invoice
+# [FLAGSHIP UPGRADE] Imported the new PMJobState schema
+from core.models.parts_schemas import InventoryItem, JobDocument, Invoice, PMJobState
 
 load_dotenv()
 
@@ -41,7 +42,7 @@ class MongoDBTools:
             self.client = None
             return None
 
-    def get_upcoming_jobs(self, days: int = 14) -> List[Dict[str, Any]]:
+    def get_upcoming_jobs(self, days: int = 14) -> List[JobDocument]:
         """Get jobs scheduled in the next N days with fallback to synthetic data."""
         try:
             client = self.connect()
@@ -177,6 +178,27 @@ class MongoDBTools:
             "FILTER-20x25": {"name": "Air Filter MERV 8", "total_required": 6, "jobs": ["job_002"]},
             "CAP-45-5": {"name": "Dual Capacitor", "total_required": 3, "jobs": ["job_002"]},
         }
+
+    # [FLAGSHIP UPGRADE] Added write path for Orchestrator persistence.
+    def upsert_job_state(self, state: PMJobState) -> None:
+        """Persist orchestrator state to MongoDB with Phase 9 Pydantic validation."""
+        try:
+            client = self.connect()
+            if not client:
+                print(f"No MongoDB connection; state for {state.job_id} remains in-memory only.")
+                return
+
+            db = client["hvac_ops"]
+            collection = db["orchestrator_jobs"]
+
+            # model_dump(mode='json') strictly enforces schema and handles datetimes safely
+            collection.update_one(
+                {"job_id": state.job_id},
+                {"$set": state.model_dump(mode='json')},
+                upsert=True
+            )
+        except Exception as exc:
+            print(f"MongoDB state persistence failed for {state.job_id}: {exc}")
 
 
 mongodb_tools = MongoDBTools()
