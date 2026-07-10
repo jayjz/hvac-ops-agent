@@ -2,6 +2,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+import logging
 from io import BytesIO
 
 # Use 'Agg' for non-interactive server-side rendering
@@ -32,22 +33,27 @@ def build_risk_chart_png(risks_df: pd.DataFrame) -> bytes | None:
     """
     if risks_df.empty: return None
 
-    plot_df = risks_df.sort_values("score", ascending=True)
-    fig, ax = plt.subplots(figsize=(8, 4))
-    
-    ax.barh(plot_df["risk"].astype(str), plot_df["score"].astype(float), color=THEME["teal"], height=0.6)
-    
-    ax.set_xlabel("Risk Score", color=THEME["text_secondary"], fontweight="bold")
-    ax.set_title("Top PM Risk Exposure", color=THEME["text_primary"], pad=15, fontweight="bold")
-    
-    _apply_dark_theme(ax, fig)
-    fig.tight_layout()
-    
-    buffer = BytesIO()
-    fig.savefig(buffer, format="png", dpi=160)
-    plt.close(fig) # Explicit memory cleanup
-    
-    return buffer.getvalue()
+    try:
+        plot_df = risks_df.sort_values("score", ascending=True)
+        fig, ax = plt.subplots(figsize=(8, 4))
+        
+        ax.barh(plot_df["risk"].astype(str), plot_df["score"].astype(float), color=THEME["teal"], height=0.6)
+        
+        ax.set_xlabel("Risk Score", color=THEME["text_secondary"], fontweight="bold")
+        ax.set_title("Top PM Risk Exposure", color=THEME["text_primary"], pad=15, fontweight="bold")
+        
+        _apply_dark_theme(ax, fig)
+        fig.tight_layout()
+        
+        buffer = BytesIO()
+        # [OPTIMIZED] Ensure labels aren't clipped and bg color is explicitly passed
+        fig.savefig(buffer, format="png", dpi=160, bbox_inches="tight", facecolor=fig.get_facecolor(), transparent=False)
+        plt.close(fig) # Explicit memory cleanup
+        
+        return buffer.getvalue()
+    except Exception as e:
+        logging.error(f"Risk chart generation failed: {e}")
+        return None
 
 def build_gantt_chart_png(schedule_df: pd.DataFrame) -> bytes | None:
     """
@@ -56,26 +62,31 @@ def build_gantt_chart_png(schedule_df: pd.DataFrame) -> bytes | None:
     """
     if schedule_df.empty: return None
 
-    frame = schedule_df.sort_values("start_day", ascending=True).copy()
-    frame["start_day"] = pd.to_numeric(frame["start_day"], errors="coerce").fillna(0)
-    frame["duration_days"] = pd.to_numeric(frame["duration_days"], errors="coerce").fillna(1)
+    try:
+        frame = schedule_df.sort_values("start_day", ascending=True).copy()
+        frame["start_day"] = pd.to_numeric(frame["start_day"], errors="coerce").fillna(0)
+        frame["duration_days"] = pd.to_numeric(frame["duration_days"], errors="coerce").fillna(1)
 
-    fig, ax = plt.subplots(figsize=(10, max(3, len(frame) * 0.55)))
-    
-    ax.barh(
-        frame["task"].astype(str), frame["duration_days"], left=frame["start_day"], 
-        color=THEME["purple"], height=0.4, edgecolor=THEME["teal"], linewidth=1.5
-    )
-    
-    ax.set_xlabel("Project Day", color=THEME["text_secondary"], fontweight="bold")
-    ax.set_title("Optimized Baseline Schedule", color=THEME["text_primary"], pad=15, fontweight="bold")
-    
-    _apply_dark_theme(ax, fig)
-    ax.invert_yaxis()
-    fig.tight_layout()
-    
-    buffer = BytesIO()
-    fig.savefig(buffer, format="png", dpi=160)
-    plt.close(fig)
-    
-    return buffer.getvalue()
+        fig, ax = plt.subplots(figsize=(10, max(3, len(frame) * 0.55)))
+        
+        ax.barh(
+            frame["task"].astype(str), frame["duration_days"], left=frame["start_day"], 
+            color=THEME["purple"], height=0.4, edgecolor=THEME["teal"], linewidth=1.5
+        )
+        
+        ax.set_xlabel("Project Day", color=THEME["text_secondary"], fontweight="bold")
+        ax.set_title("Optimized Baseline Schedule", color=THEME["text_primary"], pad=15, fontweight="bold")
+        
+        _apply_dark_theme(ax, fig)
+        ax.invert_yaxis()
+        fig.tight_layout()
+        
+        buffer = BytesIO()
+        # [OPTIMIZED] Ensure labels aren't clipped and bg color is explicitly passed
+        fig.savefig(buffer, format="png", dpi=160, bbox_inches="tight", facecolor=fig.get_facecolor(), transparent=False)
+        plt.close(fig)
+        
+        return buffer.getvalue()
+    except Exception as e:
+        logging.error(f"Gantt chart generation failed: {e}")
+        return None
