@@ -63,7 +63,7 @@ def render_dispatch_workspace() -> None:
         st.info("Awaiting execution. Configure goals and click Execute.")
 
 def _render_executive_tabs(result: dict) -> None:
-    """Renders the high-level project data using our chart utilities."""
+    """Renders executive data using raw binary chart data."""
     
     report = result.get("pm_report", {})
     req_df = pd.DataFrame(result.get("requirements_register", []))
@@ -71,6 +71,24 @@ def _render_executive_tabs(result: dict) -> None:
     sched_df = pd.DataFrame(result.get("optimized_schedule", {}).get("tasks", []))
     
     baseline_data = result.get("dispatch_baseline", {})
+
+    # Generate raw bytes (no base64 string conversion here)
+    risk_chart_bytes = build_risk_chart_png(risk_df)
+    gantt_chart_bytes = build_gantt_chart_png(sched_df)
+
+    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Requirements", "Risks", "Schedule"])
+    
+    with tab3:
+        if not risk_df.empty and risk_chart_bytes:
+            # FIX: st.image accepts bytes directly. Do not encode to base64.
+            st.image(risk_chart_bytes, width=800)
+            st.dataframe(risk_df, width="stretch", hide_index=True)
+            
+    with tab4:
+        if not sched_df.empty and gantt_chart_bytes:
+            # FIX: Use st.image for raw bytes, not st.pyplot
+            st.image(gantt_chart_bytes, width="stretch")
+            st.dataframe(sched_df, width="stretch", hide_index=True)
 
     # [OPTIMIZED] Generate raw bytes. No base64 encoding needed. 
     risk_chart_bytes = build_risk_chart_png(risk_df)
