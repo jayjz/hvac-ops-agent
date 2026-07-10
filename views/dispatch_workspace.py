@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import base64
 from utils.engine import execute_pm_run
-from ui.charts import build_risk_chart_png, build_gantt_figure
+from ui.charts import build_risk_chart_png, build_gantt_figure_b64
 # [UPDATED IMPORT] Bring in the new QuickBooks wrapper
 from utils.exports import build_report_zip, build_quickbooks_xlsx
 
@@ -69,7 +69,7 @@ def _render_executive_tabs(result: dict) -> None:
     baseline_data = result.get("dispatch_baseline", {})
 
     risk_chart_bytes = build_risk_chart_png(risk_df)
-    gantt_fig = build_gantt_figure(sched_df)
+    gantt_fig = build_gantt_figure_b64(sched_df)
 
     tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Requirements", "Risks", "Schedule"])
     
