@@ -4,7 +4,6 @@ import pandas as pd
 import base64
 from utils.engine import execute_pm_run
 from ui.charts import build_risk_chart_png, build_gantt_figure_b64
-# [UPDATED IMPORT] Bring in the new QuickBooks wrapper
 from utils.exports import build_report_zip, build_quickbooks_xlsx
 
 def render_dispatch_workspace() -> None:
@@ -37,6 +36,7 @@ def render_dispatch_workspace() -> None:
         )
         st.session_state["goals"] = [line.strip() for line in goal_text.splitlines() if line.strip()]
         
+    # [OPTIMIZATION] width="stretch" replaces the deprecated use_container_width=True
     if st.button("Execute Multi-Agent Dispatch", width="stretch", type="primary"):
         result = execute_pm_run(
             project_path=None, 
@@ -65,11 +65,22 @@ def _render_executive_tabs(result: dict) -> None:
     risk_df = pd.DataFrame(result.get("risk_register", []))
     sched_df = pd.DataFrame(result.get("optimized_schedule", {}).get("tasks", []))
     
-    # [FIX] Extract the full baseline dictionary needed for QuickBooks formatting
     baseline_data = result.get("dispatch_baseline", {})
 
-    risk_chart_bytes = build_risk_chart_png(risk_df)
-    gantt_fig = build_gantt_figure_b64(sched_df)
+    # [FIX] These functions return Base64 Strings, NOT raw bytes or Matplotlib figures.
+    risk_chart_b64_str = build_risk_chart_png(risk_df)
+    gantt_chart_b64_str = build_gantt_figure_b64(sched_df)
+
+    # [FIX] The ZIP exporter requires RAW BINARY BYTES, not a Base64 string.
+    # We must strip the HTML data prefix and decode it back to bytes to prevent archive corruption.
+    raw_risk_bytes = None
+    if risk_chart_b64_str:
+        try:
+            # Splits "data:image/png;base64,iVBOR..." to just get the encoded data
+            b64_data_only = risk_chart_b64_str.split(",")[1]
+            raw_risk_bytes = base64.b64decode(b64_data_only)
+        except Exception as e:
+            st.error(f"Failed to decode chart for export: {e}")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Requirements", "Risks", "Schedule"])
     
@@ -86,11 +97,11 @@ def _render_executive_tabs(result: dict) -> None:
         st.divider()
         st.subheader("Export Center")
         
-        # [FIX] Split the exports into a clean, two-column layout
         export_col1, export_col2 = st.columns(2)
         
         with export_col1:
-            zip_bytes = build_report_zip(report, req_df, risk_df, sched_df, risk_chart_bytes)
+            # [FIX] Pass the decoded raw bytes to the ZIP builder
+            zip_bytes = build_report_zip(report, req_df, risk_df, sched_df, raw_risk_bytes)
             st.download_button(
                 label="📦 Full Project Package (ZIP)",
                 data=zip_bytes,
@@ -124,17 +135,20 @@ def _render_executive_tabs(result: dict) -> None:
             
     with tab3:
         if not risk_df.empty:
-            if risk_chart_bytes:
-                b64 = base64.b64encode(risk_chart_bytes).decode()
-                st.image(f"data:image/png;base64,{b64}", width=800)
+            if risk_chart_b64_str:
+                # [FIX] Streamlit's st.image natively reads formatted Base64 strings.
+                # Do NOT base64 encode it again. Just pass the string.
+                st.image(risk_chart_b64_str, width="stretch")
             st.dataframe(risk_df, width="stretch", hide_index=True)
         else:
             st.warning("No risks identified.")
             
     with tab4:
         if not sched_df.empty:
-            if gantt_fig:
-                st.pyplot(gantt_fig, width="stretch")
+            if gantt_chart_b64_str:
+                # [FIX] Do NOT use st.pyplot here. The variable is an image string, not a Figure.
+                # Use st.image to render the base64 string directly.
+                st.image(gantt_chart_b64_str, width="stretch")
             st.dataframe(sched_df, width="stretch", hide_index=True)
         else:
             st.warning("No schedule tasks generated.")
