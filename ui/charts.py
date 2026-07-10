@@ -2,7 +2,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
-import base64
 from io import BytesIO
 
 # Use 'Agg' for non-interactive server-side rendering
@@ -27,9 +26,9 @@ def _apply_dark_theme(ax: plt.Axes, fig: plt.Figure):
         spine.set_visible(False)
     ax.grid(axis="x", alpha=0.3, color=THEME["grid"], linestyle="--")
 
-def build_risk_chart_png(risks_df: pd.DataFrame) -> str | None:
+def build_risk_chart_png(risks_df: pd.DataFrame) -> bytes | None:
     """
-    Renders risk chart as a Base64-encoded string for maximum UI stability.
+    Renders risk chart as raw PNG bytes for UI stability and ZIP exports.
     """
     if risks_df.empty: return None
 
@@ -48,12 +47,12 @@ def build_risk_chart_png(risks_df: pd.DataFrame) -> str | None:
     fig.savefig(buffer, format="png", dpi=160)
     plt.close(fig) # Explicit memory cleanup
     
-    return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
+    return buffer.getvalue()
 
-def build_gantt_figure_b64(schedule_df: pd.DataFrame) -> str | None:
+def build_gantt_chart_png(schedule_df: pd.DataFrame) -> bytes | None:
     """
-    Renders Gantt chart as a Base64-encoded string. 
-    Using Base64 instead of plt.Figure object prevents Streamlit serialization crashes.
+    Renders Gantt chart as raw PNG bytes. 
+    Prevents Streamlit serialization crashes associated with returning plt.Figure.
     """
     if schedule_df.empty: return None
 
@@ -79,4 +78,4 @@ def build_gantt_figure_b64(schedule_df: pd.DataFrame) -> str | None:
     fig.savefig(buffer, format="png", dpi=160)
     plt.close(fig)
     
-    return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
+    return buffer.getvalue()
