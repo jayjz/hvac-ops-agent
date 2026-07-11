@@ -125,7 +125,7 @@ def _render_executive_tabs(result: dict) -> None:
     with tab3:
         if not risk_df.empty:
             if risk_chart_bytes:
-                b64 = base64.b64encode(risk_chart_bytes).decode()
+                b64 = base64.b64encode(risk_chart_bytes.encode()) if isinstance(risk_chart_bytes, str) else base64.b64encode(risk_chart_bytes).decode()
                 st.image(f"data:image/png;base64,{b64}", width=800)
             st.dataframe(risk_df, width="stretch", hide_index=True)
         else:
