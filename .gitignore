@@ -114,3 +114,7 @@ mongodb-data/
 PROJECT_MEMORY.md  # Optional: keep local-only if sensitive
 # Do not track any credential placeholders or test data with real keys
 # Verified: no MONGO_URI values, API keys, or passwords in tracked source (grep returned only env calls/comments)
+hvac_scaffold.tar.gz
+hvac_scaffold.tar.gz
+hvac_scaffold.tar.gz
+hvac_ops_snapshot.tar.gz
