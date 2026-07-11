@@ -1,10 +1,11 @@
-"""MongoDB tools for HVAC OpsForge agent operations with **pure Pydantic** normalization (Phase 9 per TDD skill and PROJECT_MEMORY.md canonical VP). All read paths now return typed List[Model] with .model_validate; removed all hybrid hasattr/getattr/isinstance-dict code. get_overdue_invoices now returns List[Invoice]. get_parts_required_for_jobs assumes List[JobDocument] only. Synthetic fallbacks also fully validated. Cites canonical VP/JTBD/Porter's verbatim in docstrings."""
+"""MongoDB tools for HVAC OpsForge agent operations with **pure Pydantic** normalization (Phase 9 per TDD skill and PROJECT_MEMORY.md canonical VP). All read paths now return typed List[Model] with .model_validate; removed all hybrid hasattr/getattr/isinstance-dict code. get_overdue_invoices now returns List[Invoice]. get_parts_required_for_jobs assumes List[JobDocument] only. Synthetic fallbacks fully validated. Cites canonical VP/JTBD/Porter's verbatim in docstrings."""
 
 from __future__ import annotations
 
 import os
+import json
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 from dotenv import load_dotenv
 from pydantic import ValidationError
@@ -42,6 +43,18 @@ class MongoDBTools:
             self.client = None
             return None
 
+    def _load_mock(self, key: str) -> List[Dict[str, Any]]:
+        """Fallback loader for demonstration data."""
+        try:
+            path = os.path.join("memory", "demo_data.json")
+            if os.path.exists(path):
+                with open(path, "r") as f:
+                    data = json.load(f)
+                    return data.get(key, [])
+        except Exception as exc:
+            print(f"Mock data loading failed: {exc}")
+        return []
+
     def get_upcoming_jobs(self, days: int = 14) -> List[JobDocument]:
         """Get jobs scheduled in the next N days with fallback to synthetic data."""
         try:
@@ -67,6 +80,11 @@ class MongoDBTools:
         except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
+        # Fallback to mock file, then hardcoded default
+        mock_data = self._load_mock("jobs")
+        if mock_data:
+            return [JobDocument.model_validate(j) for j in mock_data]
+
         synthetic = [
             {
                 "job_id": "job_001",
@@ -75,8 +93,7 @@ class MongoDBTools:
                 "scheduled_date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
                 "status": "scheduled",
                 "estimated_hours": 8,
-            },
-            # ... (2 more as before)
+            }
         ]
         return [JobDocument.model_validate(j) for j in synthetic]
 
@@ -101,9 +118,12 @@ class MongoDBTools:
         except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
-        synthetic = [  # matching previous
+        mock_data = self._load_mock("inventory")
+        if mock_data:
+            return [InventoryItem.model_validate(i) for i in mock_data]
+
+        synthetic = [
             {"sku": "HP-001", "name": "Heat Pump Unit 3-Ton", "quantity": 2, "reorder_point": 3, "unit_cost": 2500.0, "category": "equipment"},
-            # ... (3 more)
         ]
         return [InventoryItem.model_validate(item) for item in synthetic]
 
@@ -133,6 +153,10 @@ class MongoDBTools:
         except (PyMongoError, ConnectionError, ValidationError, Exception) as exc:
             print(f"MongoDB query failed, using synthetic data: {exc}")
 
+        mock_data = self._load_mock("invoices")
+        if mock_data:
+            return [Invoice.model_validate(i) for i in mock_data]
+
         synthetic = [
             {
                 "invoice_id": "INV-2026-001",
@@ -141,12 +165,11 @@ class MongoDBTools:
                 "days_overdue": 45,
                 "status": "overdue",
             },
-            # 2 more matching model validators (amount>0, days>=0, status pattern)
         ]
         return [Invoice.model_validate(s) for s in synthetic]
 
     def get_parts_required_for_jobs(self, job_list: List[JobDocument]) -> Dict[str, Dict]:
-        """Pure Pydantic: job_list is List[JobDocument]; direct .job_type / .job_id (no hasattr/get/isinstance-dict hybrids - removed in Phase 9 normalization)."""
+        """Pure Pydantic: job_list is List[JobDocument]; direct .job_type / .job_id."""
         if not job_list:
             raise ValueError("Job list cannot be empty")
         try:
@@ -179,7 +202,6 @@ class MongoDBTools:
             "CAP-45-5": {"name": "Dual Capacitor", "total_required": 3, "jobs": ["job_002"]},
         }
 
-    # [FLAGSHIP UPGRADE] Added write path for Orchestrator persistence.
     def upsert_job_state(self, state: PMJobState) -> None:
         """Persist orchestrator state to MongoDB with Phase 9 Pydantic validation."""
         try:
@@ -191,7 +213,6 @@ class MongoDBTools:
             db = client["hvac_ops"]
             collection = db["orchestrator_jobs"]
 
-            # model_dump(mode='json') strictly enforces schema and handles datetimes safely
             collection.update_one(
                 {"job_id": state.job_id},
                 {"$set": state.model_dump(mode='json')},

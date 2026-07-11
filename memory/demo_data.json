@@ -1,0 +1,426 @@
+{
+    "inventory": [
+        {
+            "sku": "COMP-44",
+            "name": "Part COMP-44",
+            "quantity": 4,
+            "reorder_point": 10,
+            "unit_cost": 302.3088059125979,
+            "category": "Stock"
+        },
+        {
+            "sku": "FLTR-2025",
+            "name": "Part FLTR-2025",
+            "quantity": 20,
+            "reorder_point": 10,
+            "unit_cost": 288.91131223444773,
+            "category": "Stock"
+        },
+        {
+            "sku": "THERM-X1",
+            "name": "Part THERM-X1",
+            "quantity": 4,
+            "reorder_point": 10,
+            "unit_cost": 434.2599841834057,
+            "category": "Stock"
+        },
+        {
+            "sku": "VALVE-TXV",
+            "name": "Part VALVE-TXV",
+            "quantity": 18,
+            "reorder_point": 10,
+            "unit_cost": 483.33719197340395,
+            "category": "Stock"
+        },
+        {
+            "sku": "BELT-48",
+            "name": "Part BELT-48",
+            "quantity": 3,
+            "reorder_point": 10,
+            "unit_cost": 317.01321765012705,
+            "category": "Stock"
+        },
+        {
+            "sku": "MTR-0.5HP",
+            "name": "Part MTR-0.5HP",
+            "quantity": 4,
+            "reorder_point": 10,
+            "unit_cost": 150.5347545514216,
+            "category": "Stock"
+        }
+    ],
+    "jobs": [
+        {
+            "job_id": "JOB-1001",
+            "job_type": "Full_Install",
+            "customer_name": "Enterprise Client 1",
+            "scheduled_date": "2026-07-14T01:00:21.206051+00:00",
+            "status": "scheduled",
+            "estimated_hours": 9.219488227820733,
+            "assigned_tech": "TCH-005"
+        },
+        {
+            "job_id": "JOB-1002",
+            "job_type": "Full_Install",
+            "customer_name": "Enterprise Client 2",
+            "scheduled_date": "2026-07-12T01:00:21.206071+00:00",
+            "status": "scheduled",
+            "estimated_hours": 4.952530236131697,
+            "assigned_tech": "TCH-013"
+        },
+        {
+            "job_id": "JOB-1003",
+            "job_type": "Full_Install",
+            "customer_name": "Enterprise Client 3",
+            "scheduled_date": "2026-07-11T01:00:21.206079+00:00",
+            "status": "confirmed",
+            "estimated_hours": 10.216624273630549,
+            "assigned_tech": "TCH-003"
+        },
+        {
+            "job_id": "JOB-1004",
+            "job_type": "Emergency_Repair",
+            "customer_name": "Enterprise Client 4",
+            "scheduled_date": "2026-07-16T01:00:21.206084+00:00",
+            "status": "scheduled",
+            "estimated_hours": 3.124906166122621,
+            "assigned_tech": "TCH-015"
+        },
+        {
+            "job_id": "JOB-1005",
+            "job_type": "Emergency_Repair",
+            "customer_name": "Enterprise Client 5",
+            "scheduled_date": "2026-07-13T01:00:21.206089+00:00",
+            "status": "confirmed",
+            "estimated_hours": 3.7720075172937033,
+            "assigned_tech": "TCH-004"
+        },
+        {
+            "job_id": "JOB-1006",
+            "job_type": "HVAC_Maintenance",
+            "customer_name": "Enterprise Client 6",
+            "scheduled_date": "2026-07-13T01:00:21.206093+00:00",
+            "status": "in_progress",
+            "estimated_hours": 3.9369217987040956,
+            "assigned_tech": "TCH-008"
+        },
+        {
+            "job_id": "JOB-1007",
+            "job_type": "Emergency_Repair",
+            "customer_name": "Enterprise Client 7",
+            "scheduled_date": "2026-07-15T01:00:21.206100+00:00",
+            "status": "in_progress",
+            "estimated_hours": 10.173120927215304,
+            "assigned_tech": "TCH-013"
+        },
+        {
+            "job_id": "JOB-1008",
+            "job_type": "HVAC_Maintenance",
+            "customer_name": "Enterprise Client 8",
+            "scheduled_date": "2026-07-15T01:00:21.206104+00:00",
+            "status": "confirmed",
+            "estimated_hours": 6.720988057946927,
+            "assigned_tech": "TCH-010"
+        },
+        {
+            "job_id": "JOB-1009",
+            "job_type": "Full_Install",
+            "customer_name": "Enterprise Client 9",
+            "scheduled_date": "2026-07-14T01:00:21.206108+00:00",
+            "status": "in_progress",
+            "estimated_hours": 5.5014525398964444,
+            "assigned_tech": "TCH-010"
+        },
+        {
+            "job_id": "JOB-1010",
+            "job_type": "BAS_Retrofit",
+            "customer_name": "Enterprise Client 10",
+            "scheduled_date": "2026-07-12T01:00:21.206112+00:00",
+            "status": "in_progress",
+            "estimated_hours": 8.236627796644937,
+            "assigned_tech": "TCH-006"
+        },
+        {
+            "job_id": "JOB-1011",
+            "job_type": "Emergency_Repair",
+            "customer_name": "Enterprise Client 11",
+            "scheduled_date": "2026-07-11T01:00:21.206116+00:00",
+            "status": "confirmed",
+            "estimated_hours": 10.39846114153979,
+            "assigned_tech": "TCH-006"
+        },
+        {
+            "job_id": "JOB-1012",
+            "job_type": "BAS_Retrofit",
+            "customer_name": "Enterprise Client 12",
+            "scheduled_date": "2026-07-14T01:00:21.206120+00:00",
+            "status": "confirmed",
+            "estimated_hours": 2.084102106148597,
+            "assigned_tech": "TCH-008"
+        },
+        {
+            "job_id": "JOB-1013",
+            "job_type": "HVAC_Maintenance",
+            "customer_name": "Enterprise Client 13",
+            "scheduled_date": "2026-07-14T01:00:21.206124+00:00",
+            "status": "in_progress",
+            "estimated_hours": 5.665792334034545,
+            "assigned_tech": "TCH-002"
+        },
+        {
+            "job_id": "JOB-1014",
+            "job_type": "BAS_Retrofit",
+            "customer_name": "Enterprise Client 14",
+            "scheduled_date": "2026-07-14T01:00:21.206127+00:00",
+            "status": "scheduled",
+            "estimated_hours": 3.1308582293375857,
+            "assigned_tech": "TCH-012"
+        },
+        {
+            "job_id": "JOB-1015",
+            "job_type": "Full_Install",
+            "customer_name": "Enterprise Client 15",
+            "scheduled_date": "2026-07-14T01:00:21.206131+00:00",
+            "status": "in_progress",
+            "estimated_hours": 3.2175653198570835,
+            "assigned_tech": "TCH-014"
+        },
+        {
+            "job_id": "JOB-1016",
+            "job_type": "BAS_Retrofit",
+            "customer_name": "Enterprise Client 16",
+            "scheduled_date": "2026-07-15T01:00:21.206135+00:00",
+            "status": "confirmed",
+            "estimated_hours": 9.153914697811974,
+            "assigned_tech": "TCH-004"
+        },
+        {
+            "job_id": "JOB-1017",
+            "job_type": "Full_Install",
+            "customer_name": "Enterprise Client 17",
+            "scheduled_date": "2026-07-13T01:00:21.206139+00:00",
+            "status": "confirmed",
+            "estimated_hours": 6.285309028716529,
+            "assigned_tech": "TCH-006"
+        },
+        {
+            "job_id": "JOB-1018",
+            "job_type": "Emergency_Repair",
+            "customer_name": "Enterprise Client 18",
+            "scheduled_date": "2026-07-15T01:00:21.206143+00:00",
+            "status": "in_progress",
+            "estimated_hours": 11.913127985845238,
+            "assigned_tech": "TCH-002"
+        },
+        {
+            "job_id": "JOB-1019",
+            "job_type": "HVAC_Maintenance",
+            "customer_name": "Enterprise Client 19",
+            "scheduled_date": "2026-07-15T01:00:21.206146+00:00",
+            "status": "scheduled",
+            "estimated_hours": 4.16624113591564,
+            "assigned_tech": "TCH-007"
+        },
+        {
+            "job_id": "JOB-1020",
+            "job_type": "BAS_Retrofit",
+            "customer_name": "Enterprise Client 20",
+            "scheduled_date": "2026-07-15T01:00:21.206150+00:00",
+            "status": "in_progress",
+            "estimated_hours": 8.591438377741717,
+            "assigned_tech": "TCH-012"
+        }
+    ],
+    "invoices": [
+        {
+            "invoice_id": "INV-2001",
+            "customer_name": "Enterprise Client 1",
+            "amount": 10322.56597920657,
+            "days_overdue": 0,
+            "status": "overdue"
+        },
+        {
+            "invoice_id": "INV-2002",
+            "customer_name": "Enterprise Client 2",
+            "amount": 11047.966317049739,
+            "days_overdue": 41,
+            "status": "sent"
+        },
+        {
+            "invoice_id": "INV-2003",
+            "customer_name": "Enterprise Client 3",
+            "amount": 13846.537463864828,
+            "days_overdue": 0,
+            "status": "overdue"
+        },
+        {
+            "invoice_id": "INV-2004",
+            "customer_name": "Enterprise Client 4",
+            "amount": 6902.953572577465,
+            "days_overdue": 13,
+            "status": "overdue"
+        },
+        {
+            "invoice_id": "INV-2005",
+            "customer_name": "Enterprise Client 5",
+            "amount": 4323.781006629885,
+            "days_overdue": 3,
+            "status": "sent"
+        },
+        {
+            "invoice_id": "INV-2006",
+            "customer_name": "Enterprise Client 6",
+            "amount": 8792.627716394682,
+            "days_overdue": 29,
+            "status": "sent"
+        },
+        {
+            "invoice_id": "INV-2007",
+            "customer_name": "Enterprise Client 7",
+            "amount": 7706.7998260321465,
+            "days_overdue": 5,
+            "status": "overdue"
+        },
+        {
+            "invoice_id": "INV-2008",
+            "customer_name": "Enterprise Client 8",
+            "amount": 5260.2698244146895,
+            "days_overdue": 40,
+            "status": "overdue"
+        },
+        {
+            "invoice_id": "INV-2009",
+            "customer_name": "Enterprise Client 9",
+            "amount": 10845.332292317878,
+            "days_overdue": 32,
+            "status": "overdue"
+        },
+        {
+            "invoice_id": "INV-2010",
+            "customer_name": "Enterprise Client 10",
+            "amount": 6282.72705777649,
+            "days_overdue": 40,
+            "status": "sent"
+        },
+        {
+            "invoice_id": "INV-2011",
+            "customer_name": "Enterprise Client 11",
+            "amount": 6833.092389195587,
+            "days_overdue": 2,
+            "status": "sent"
+        },
+        {
+            "invoice_id": "INV-2012",
+            "customer_name": "Enterprise Client 12",
+            "amount": 3486.0646686064415,
+            "days_overdue": 36,
+            "status": "sent"
+        },
+        {
+            "invoice_id": "INV-2013",
+            "customer_name": "Enterprise Client 13",
+            "amount": 12868.837766727653,
+            "days_overdue": 28,
+            "status": "sent"
+        },
+        {
+            "invoice_id": "INV-2014",
+            "customer_name": "Enterprise Client 14",
+            "amount": 5841.292820644492,
+            "days_overdue": 23,
+            "status": "overdue"
+        }
+    ],
+    "technicians": [
+        {
+            "id": "TCH-001",
+            "name": "Tech 1",
+            "role": "Controls Specialist",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-002",
+            "name": "Tech 2",
+            "role": "Lead Tech",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-003",
+            "name": "Tech 3",
+            "role": "Apprentice",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-004",
+            "name": "Tech 4",
+            "role": "Apprentice",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-005",
+            "name": "Tech 5",
+            "role": "Apprentice",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-006",
+            "name": "Tech 6",
+            "role": "Apprentice",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-007",
+            "name": "Tech 7",
+            "role": "Apprentice",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-008",
+            "name": "Tech 8",
+            "role": "Lead Tech",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-009",
+            "name": "Tech 9",
+            "role": "Lead Tech",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-010",
+            "name": "Tech 10",
+            "role": "Senior Tech",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-011",
+            "name": "Tech 11",
+            "role": "Lead Tech",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-012",
+            "name": "Tech 12",
+            "role": "Lead Tech",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-013",
+            "name": "Tech 13",
+            "role": "Controls Specialist",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-014",
+            "name": "Tech 14",
+            "role": "Senior Tech",
+            "status": "Available"
+        },
+        {
+            "id": "TCH-015",
+            "name": "Tech 15",
+            "role": "Senior Tech",
+            "status": "Available"
+        }
+    ]
+}
