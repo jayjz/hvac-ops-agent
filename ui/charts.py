@@ -2,7 +2,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
-import base64
+import logging
 from io import BytesIO
 
 # Use 'Agg' for non-interactive server-side rendering
@@ -27,56 +27,66 @@ def _apply_dark_theme(ax: plt.Axes, fig: plt.Figure):
         spine.set_visible(False)
     ax.grid(axis="x", alpha=0.3, color=THEME["grid"], linestyle="--")
 
-def build_risk_chart_png(risks_df: pd.DataFrame) -> str | None:
+def build_risk_chart_png(risks_df: pd.DataFrame) -> bytes | None:
     """
-    Renders risk chart as a Base64-encoded string for maximum UI stability.
+    Renders risk chart as raw PNG bytes for UI stability and ZIP exports.
     """
     if risks_df.empty: return None
 
-    plot_df = risks_df.sort_values("score", ascending=True)
-    fig, ax = plt.subplots(figsize=(8, 4))
-    
-    ax.barh(plot_df["risk"].astype(str), plot_df["score"].astype(float), color=THEME["teal"], height=0.6)
-    
-    ax.set_xlabel("Risk Score", color=THEME["text_secondary"], fontweight="bold")
-    ax.set_title("Top PM Risk Exposure", color=THEME["text_primary"], pad=15, fontweight="bold")
-    
-    _apply_dark_theme(ax, fig)
-    fig.tight_layout()
-    
-    buffer = BytesIO()
-    fig.savefig(buffer, format="png", dpi=160)
-    plt.close(fig) # Explicit memory cleanup
-    
-    return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
+    try:
+        plot_df = risks_df.sort_values("score", ascending=True)
+        fig, ax = plt.subplots(figsize=(8, 4))
+        
+        ax.barh(plot_df["risk"].astype(str), plot_df["score"].astype(float), color=THEME["teal"], height=0.6)
+        
+        ax.set_xlabel("Risk Score", color=THEME["text_secondary"], fontweight="bold")
+        ax.set_title("Top PM Risk Exposure", color=THEME["text_primary"], pad=15, fontweight="bold")
+        
+        _apply_dark_theme(ax, fig)
+        fig.tight_layout()
+        
+        buffer = BytesIO()
+        # [OPTIMIZED] Ensure labels aren't clipped and bg color is explicitly passed
+        fig.savefig(buffer, format="png", dpi=160, bbox_inches="tight", facecolor=fig.get_facecolor(), transparent=False)
+        plt.close(fig) # Explicit memory cleanup
+        
+        return buffer.getvalue()
+    except Exception as e:
+        logging.error(f"Risk chart generation failed: {e}")
+        return None
 
-def build_gantt_figure_b64(schedule_df: pd.DataFrame) -> str | None:
+def build_gantt_chart_png(schedule_df: pd.DataFrame) -> bytes | None:
     """
-    Renders Gantt chart as a Base64-encoded string. 
-    Using Base64 instead of plt.Figure object prevents Streamlit serialization crashes.
+    Renders Gantt chart as raw PNG bytes. 
+    Prevents Streamlit serialization crashes associated with returning plt.Figure.
     """
     if schedule_df.empty: return None
 
-    frame = schedule_df.sort_values("start_day", ascending=True).copy()
-    frame["start_day"] = pd.to_numeric(frame["start_day"], errors="coerce").fillna(0)
-    frame["duration_days"] = pd.to_numeric(frame["duration_days"], errors="coerce").fillna(1)
+    try:
+        frame = schedule_df.sort_values("start_day", ascending=True).copy()
+        frame["start_day"] = pd.to_numeric(frame["start_day"], errors="coerce").fillna(0)
+        frame["duration_days"] = pd.to_numeric(frame["duration_days"], errors="coerce").fillna(1)
 
-    fig, ax = plt.subplots(figsize=(10, max(3, len(frame) * 0.55)))
-    
-    ax.barh(
-        frame["task"].astype(str), frame["duration_days"], left=frame["start_day"], 
-        color=THEME["purple"], height=0.4, edgecolor=THEME["teal"], linewidth=1.5
-    )
-    
-    ax.set_xlabel("Project Day", color=THEME["text_secondary"], fontweight="bold")
-    ax.set_title("Optimized Baseline Schedule", color=THEME["text_primary"], pad=15, fontweight="bold")
-    
-    _apply_dark_theme(ax, fig)
-    ax.invert_yaxis()
-    fig.tight_layout()
-    
-    buffer = BytesIO()
-    fig.savefig(buffer, format="png", dpi=160)
-    plt.close(fig)
-    
-    return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
+        fig, ax = plt.subplots(figsize=(10, max(3, len(frame) * 0.55)))
+        
+        ax.barh(
+            frame["task"].astype(str), frame["duration_days"], left=frame["start_day"], 
+            color=THEME["purple"], height=0.4, edgecolor=THEME["teal"], linewidth=1.5
+        )
+        
+        ax.set_xlabel("Project Day", color=THEME["text_secondary"], fontweight="bold")
+        ax.set_title("Optimized Baseline Schedule", color=THEME["text_primary"], pad=15, fontweight="bold")
+        
+        _apply_dark_theme(ax, fig)
+        ax.invert_yaxis()
+        fig.tight_layout()
+        
+        buffer = BytesIO()
+        # [OPTIMIZED] Ensure labels aren't clipped and bg color is explicitly passed
+        fig.savefig(buffer, format="png", dpi=160, bbox_inches="tight", facecolor=fig.get_facecolor(), transparent=False)
+        plt.close(fig)
+        
+        return buffer.getvalue()
+    except Exception as e:
+        logging.error(f"Gantt chart generation failed: {e}")
+        return None
