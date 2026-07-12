@@ -7,11 +7,11 @@
 
 import streamlit as st
 import pandas as pd
-import base64
 import json
 
 from utils.engine import execute_pm_run
-from ui.charts import build_risk_chart_png, build_gantt_figure_b64
+# [P0 FIX] Updated imports to match the new raw byte generation functions in charts.py
+from ui.charts import build_risk_chart_png, build_gantt_chart_png
 from utils.exports import build_report_zip, build_quickbooks_xlsx
 
 def render_dispatch_workspace() -> None:
@@ -85,9 +85,9 @@ def _render_executive_tabs(result: dict) -> None:
     sched_df = pd.DataFrame(result.get("optimized_schedule", {}).get("tasks", []))
     baseline_data = result.get("dispatch_baseline", {})
 
-    # Generate charts as binary/base64 to avoid serialization issues in Streamlit
+    # [P0 FIX] Generate charts as raw bytes to avoid serialization issues
     risk_chart_bytes = build_risk_chart_png(risk_df)
-    gantt_fig = build_gantt_figure_b64(sched_df)
+    gantt_bytes = build_gantt_chart_png(sched_df)
 
     # UI Tabs: Segregated Views for Executive Focus
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Requirements", "Risks", "Schedule", "Agent Logic"])
@@ -141,17 +141,18 @@ def _render_executive_tabs(result: dict) -> None:
             
     with tab3:
         if not risk_df.empty:
+            # [P0 FIX] Directly render raw bytes. No Base64 ternary mess.
             if risk_chart_bytes:
-                b64 = base64.b64encode(risk_chart_bytes.encode()) if isinstance(risk_chart_bytes, str) else base64.b64encode(risk_chart_bytes).decode()
-                st.image(f"data:image/png;base64,{b64}", width=800)
+                st.image(risk_chart_bytes, width=800)
             st.dataframe(risk_df, width="stretch", hide_index=True)
+        else:
+            st.warning("No risks identified.")
             
     with tab4:
         if not sched_df.empty:
-            if gantt_fig:
-                # FIX: We are passing a Base64 string, not a plot object. 
-                # Use st.image to render the data URI.
-                st.image(gantt_fig, use_container_width=True)
+            # [P0 FIX] Directly render raw bytes for the Gantt chart.
+            if gantt_bytes:
+                st.image(gantt_bytes, use_container_width=True)
             st.dataframe(sched_df, width="stretch", hide_index=True)
         else:
             st.warning("No schedule tasks generated.")
