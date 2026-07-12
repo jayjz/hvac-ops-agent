@@ -11,6 +11,7 @@ import json
 
 from utils.engine import execute_pm_run
 # [P0 FIX] Updated imports to match the new raw byte generation functions in charts.py
+
 from ui.charts import build_risk_chart_png, build_gantt_chart_png
 from utils.exports import build_report_zip, build_quickbooks_xlsx
 
@@ -151,6 +152,7 @@ def _render_executive_tabs(result: dict) -> None:
     with tab4:
         if not sched_df.empty:
             # [P0 FIX] Directly render raw bytes for the Gantt chart.
+
             if gantt_bytes:
                 st.image(gantt_bytes, use_container_width=True)
             st.dataframe(sched_df, width="stretch", hide_index=True)

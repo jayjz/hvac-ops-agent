@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
@@ -144,15 +145,18 @@ class LeadArchitect(BaseAgent):
     async def _create_plan(
         self, project_data: Dict[str, Any], goals: List[str]
     ) -> List[Dict[str, Any]]:
+        # SAFETY NET: Return fallback if offline or no API key
         if self.client is None:
             return self._fallback_plan(goals)
 
+        # STRICT PROMPT: Demanding a JSON object (required for response_format mode)
         prompt = {
             "role": "system",
             "content": (
-                "You are the Lead Architect for AgentForge PM. Create JSON only: a list of tasks "
-                "for requirements, risk, schedule, and report specialists. Include id, specialist, "
-                "objective, inputs, and expected_output."
+                "You are the Lead Architect for AgentForge PM. "
+                "Output ONLY a raw JSON object containing a single key 'execution_plan' which holds a list of tasks. "
+                "Do not include Markdown backticks, conversational text, or explanations. "
+                "Format: {\"execution_plan\": [{\"id\": \"REQ-001\", \"specialist\": \"requirements\", \"objective\": \"...\", \"inputs\": [], \"expected_output\": \"...\"}]}"
             ),
         }
         user = {
@@ -162,17 +166,32 @@ class LeadArchitect(BaseAgent):
             )[:30000],
         }
         try:
+            # API ENFORCEMENT: Force valid JSON object generation
             response = await self.client.chat.completions.create(
                 model=self.model_name(),
                 messages=[prompt, user],
                 temperature=0.2,
+                response_format={"type": "json_object"}
             )
-            content = response.choices[0].message.content or "[]"
-            parsed = json.loads(content)
-            if isinstance(parsed, list):
-                return parsed
+            content = response.choices[0].message.content or "{}"
+            
+            # REGEX SANITIZATION: Clean rogue Markdown wrappers before parsing
+            clean_content = re.sub(
+                r'^```(?:json)?\s*|\s*```$', 
+                '', 
+                content.strip(), 
+                flags=re.IGNORECASE | re.MULTILINE
+            )
+            
+            parsed = json.loads(clean_content)
+            plan = parsed.get("execution_plan", [])
+            
+            if isinstance(plan, list) and len(plan) > 0:
+                return plan
+                
         except Exception as exc:
             self.logger.warning("LLM planning failed, using fallback plan: %s", exc)
+            
         return self._fallback_plan(goals)
 
     def _fallback_plan(self, goals: List[str]) -> List[Dict[str, Any]]:
