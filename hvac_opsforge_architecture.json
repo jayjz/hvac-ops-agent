@@ -1,0 +1,126 @@
+{
+  "project": {
+    "name": "HVAC OpsForge (hvac-ops-agent)",
+    "repo": "jayjz/hvac-ops-agent",
+    "default_branch": "main",
+    "primary_purpose": "Multi-agent operations co-pilot for HVAC and trade service teams. Turns reactive ops data into an executive Dispatch Baseline with human-in-the-loop approval.",
+    "phase": "Phase 1 demo-ready with synthetic fallback + optional Live Mongo. Core agent loop exists but specialist implementations are inconsistent post-split.",
+    "tech_stack": {
+      "language": "Python 3.11+",
+      "ui": "Streamlit (app.py + views/)",
+      "api": "FastAPI (api/main.py)",
+      "cli": "Click + Rich (cli.py)",
+      "agents": "Custom BaseAgent hierarchy + dynamic SPECIALISTS registry",
+      "data": "MongoDB (pymongo) with pure Pydantic models + synthetic/demo_data.json fallback",
+      "optimization": "PuLP (scheduler) + Pandas + Matplotlib",
+      "container": "Docker + docker-compose + nginx",
+      "ci": "GitHub Actions",
+      "llm": "OpenAI (LeadArchitect only; most specialists are rule/heuristic based)"
+    },
+    "generated_at": "2026-07-22T09:06:00Z"
+  },
+  "entry_points": [
+    {
+      "name": "Streamlit Dashboard",
+      "path": "app.py",
+      "command": "streamlit run app.py",
+      "description": "Primary demo UI. Routes to three views via sidebar radio. Initializes session state, injects styles, then renders Dispatch Workspace / Technician Field App / Financial Ops (AR).",
+      "depends_on": ["core.state_manager", "ui.styles", "views.*", "utils.engine"]
+    },
+    {
+      "name": "FastAPI Jobs API",
+      "path": "api/main.py",
+      "command": "uvicorn api.main:app --reload",
+      "description": "Background job submission. POST /api/jobs accepts goals + optional project_path, queues run_pm_job. In-memory job store (not production Redis).",
+      "depends_on": ["core.orchestrator"]
+    },
+    {
+      "name": "CLI",
+      "path": "cli.py",
+      "command": "python cli.py forge-pm -g \"goal1\" -g \"goal2\"",
+      "description": "forge_pm command runs full orchestrator with progress. modernize/analyze are mostly legacy CodeForge stubs.",
+      "depends_on": ["core.orchestrator"]
+    }
+  ],
+  "architecture_layers": {
+    "presentation": {
+      "app.py": "Streamlit entry. Page config, state init, navigation router.",
+      "views/": {
+        "dispatch_workspace.py": "Executive dashboard. Goals editor, Live Mongo toggle, Execute button → utils.engine.execute_pm_run → tabs for Overview/Requirements/Risks/Schedule/Agent Logic + exports (ZIP, QuickBooks XLSX).",
+        "technician_view.py": "Field-facing mobile-ish view for prioritized jobs, parts checklist, risks, offline JSON export.",
+        "ar_operations.py": "AR review queue with approve/reject decisions."
+      },
+      "ui/": {
+        "styles.py": "Premium SaaS / glassmorphism CSS injection.",
+        "charts.py": "Risk bar chart + Gantt as PNG bytes."
+      }
+    },
+    "application": {
+      "utils/engine.py": "Controller for Streamlit. live_mongo → async run_pm_job with progress; else → hardcoded synthetic result (does NOT call full agent chain).",
+      "core/orchestrator.py": "run_pm_job(). LeadArchitect → dynamic SPECIALISTS registry dispatch → assemble_dispatch_baseline → optional human approval → execute_approved_actions (mostly logging).",
+      "core/dispatch_baseline.py": "Flagship output. JTBD requirements register, Porter's Five Forces risk ranking, AR priority queue, parts queue, ROI summary, Markdown/JSON reports, QuickBooks CSV/XLSX mappers."
+    },
+    "domain_agents": {
+      "core/agents/base.py": "AgentContext, AgentResult (Pydantic), BaseAgent ABC.",
+      "core/agents/lead_architect.py": "Only agent with real LLM. Ingests project files or synthetic, builds execution_plan (or fallback).",
+      "core/agents/specialists/": {
+        "__init__.py": "SPECIALISTS dict + @register_specialist decorator. Imports the individual modules to trigger registration.",
+        "inventory_forecaster.py": "STUB — class body is only 'pass'. Non-functional.",
+        "risk_assessor.py": "STUB — class body is only 'pass'. Non-functional.",
+        "scheduler_optimizer.py": "Exists (logic also in legacy specialists.py).",
+        "ar_collector.py": "Partial — Pydantic ARResult, mongodb_tools, cashflow_score, optional parts combination.",
+        "parts_availability_checker.py": "Most complete package agent — JobPartsRequest validation, low inventory query, ReorderRecommendation list, availability_score."
+      },
+      "core/agents/specialists.py": "LEGACY monolithic file containing the full working implementations of InventoryForecasterAgent, RiskAssessorAgent, SchedulerOptimizerAgent, ARCollectorAgent. Still imported by dispatch_baseline.py. This is currently the working code for inventory/risk/scheduler; the package split is incomplete."
+    },
+    "data": {
+      "core/tools/mongodb_tools.py": "MongoDBTools singleton. Pure Pydantic read paths (JobDocument, InventoryItem, Invoice). Always falls back to memory/demo_data.json then hardcoded synthetic. upsert_job_state(PMJobState).",
+      "core/models/parts_schemas.py": "Canonical models: InventoryItem, JobDocument, Invoice, ReorderRecommendation, JobPartsRequest, PartsAvailabilityResult, ARResult, ScheduleOptimizationResult, PMJobState.",
+      "memory/demo_data.json": "Seed data for synthetic mode."
+    }
+  },
+  "data_flow": {
+    "happy_path_streamlit_live": [
+      "User sets goals + enables Live Mongo",
+      "execute_pm_run() → run_pm_job()",
+      "LeadArchitect.run() → project_data + execution_plan",
+      "_resolve_agent_sequence() maps plan specialists via aliases → SPECIALISTS registry lookup",
+      "Sequential specialist.run() with accumulating prior_data",
+      "assemble_dispatch_baseline() normalizes into requirements / risks / schedule / AR / ROI / actions",
+      "Result stored in session_state['pm_result'] → UI tabs + charts + downloads"
+    ],
+    "synthetic_path": [
+      "Live Mongo off → _build_synthetic_result() returns static dict (no real agents run). This is the demo that actually works today."
+    ],
+    "approval_loop": [
+      "require_approval=True (default) → status AWAITING_APPROVAL, returns proposed_actions",
+      "_execute_approved_actions() only logs + builds execution_results; no real side effects yet"
+    ]
+  },
+  "agent_roster": [
+    {"name": "lead_architect", "status": "functional", "llm": true, "role": "Ingest → execution_plan"},
+    {"name": "inventory_forecaster", "status": "broken in registry (stub); works only via legacy specialists.py", "llm": false, "role": "Jobs + stock → recommended_orders"},
+    {"name": "risk_assessor", "status": "broken in registry (stub)", "llm": false, "role": "Risk register with scores"},
+    {"name": "scheduler_optimizer", "status": "partial / dual", "llm": false, "role": "PuLP or CPM critical path"},
+    {"name": "ar_collector", "status": "functional in package", "llm": false, "role": "Overdue invoices + cashflow_score"},
+    {"name": "parts_availability_checker", "status": "most complete package agent", "llm": false, "role": "availability_score + reorder recommendations"}
+  ],
+  "known_gaps_and_debt": [
+    "Specialist package split incomplete: inventory_forecaster and risk_assessor are pure stubs. Registry points at them → orchestrator produces empty/failed results for those agents on the dynamic path.",
+    "dispatch_baseline.py still imports old classes from core.agents (legacy specialists.py). Dual import paths = drift.",
+    "README.md contains unresolved git merge conflict markers.",
+    "utils/engine.py synthetic path is a static mock, not a real agent run.",
+    "config.yaml is still CodeForge-oriented.",
+    "Human approval is status-only; no real action execution or write-back beyond logging.",
+    "PROJECT_MEMORY.md documents pytest collection failures and that Owner ROI Simulator was mock-only.",
+    "No auth, no multi-tenant, in-memory job store only."
+  ],
+  "recommended_next_agent_actions": [
+    "1. Finish the specialist split: move full logic from specialists.py into the package modules (especially inventory + risk) so SPECIALISTS registry is the single source of truth. Delete or deprecate the monolithic file.",
+    "2. Make execute_pm_run synthetic path actually call run_pm_job(use_mongo=False) so demos exercise real agents.",
+    "3. Resolve README merge conflict and rewrite as single coherent Phase-1 doc.",
+    "4. Add a simple approval path (Streamlit confirm or API endpoint) that calls _execute_approved_actions and writes back via mongodb_tools.",
+    "5. Fix or skip broken tests; get pytest green before new features.",
+    "6. Replace CodeForge leftovers in config.yaml and cli modernize stubs with HVAC OpsForge language."
+  ]
+}
