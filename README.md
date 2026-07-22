@@ -223,16 +223,3 @@ docker compose up -d
 ## License
 MIT License
 ```
-
-**4. After editing, complete the merge:**
-
-```bash
-git add README.md
-git commit -m "Resolve merge conflict in README.md - combine Phase 1 demo with full project docs"
-git push origin dev/ai-integration
-```
-
-**5. Then create / update the PR** on GitHub (as I explained earlier) from `dev/ai-integration` → `main`.
-
----
->>>>>>> dev/ai-integration
